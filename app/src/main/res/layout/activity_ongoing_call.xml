@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/amoled_black"
+    android:fitsSystemWindows="true">
+
+    <!-- VIDEO: Remote View (Full Screen Background) -->
+    <TextureView
+        android:id="@+id/textureRemoteVideo"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <!-- VIDEO: Local Preview (Floating Window) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardLocalPreview"
+        android:layout_width="100dp"
+        android:layout_height="150dp"
+        android:layout_marginTop="100dp"
+        android:layout_marginEnd="24dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="@color/black"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+        <TextureView
+            android:id="@+id/textureLocalPreview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </androidx.cardview.widget.CardView>
+
+    <!-- More Menu Button (3 dots) - TOP RIGHT -->
+    <ImageView
+        android:id="@+id/btnMore"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="12dp"
+        android:src="@drawable/ic_menu_dots"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="@color/white" />
+
+    <!-- Top Area: Caller Info -->
+    <LinearLayout
+        android:id="@+id/layoutTopInfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="60dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Multi-call summary area -->
+        <TextView
+            android:id="@+id/tvMultiCallSummary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/rounded_card"
+            android:backgroundTint="#20FFFFFF"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="6dp"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/tvCallerName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Unknown"
+            android:textColor="@color/white"
+            android:textSize="32sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvCallerNumber"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="+91 98765 43210"
+            android:textColor="#CCFFFFFF"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tvCallTimer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="00:00"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Center Area: Pulsing Avatar -->
+    <FrameLayout
+        android:id="@+id/layoutAvatarPulsing"
+        android:layout_width="180dp"
+        android:layout_height="180dp"
+        app:layout_constraintBottom_toTopOf="@id/barrierBottom"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layoutTopInfo">
+
+        <View
+            android:id="@+id/viewPulse1"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0"
+            android:background="@drawable/red_circle"
+            android:backgroundTint="#33FFFFFF" />
+
+        <View
+            android:id="@+id/viewPulse2"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0"
+            android:background="@drawable/red_circle"
+            android:backgroundTint="#33FFFFFF" />
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivCallerPhoto"
+            android:layout_width="138dp"
+            android:layout_height="140dp"
+            android:layout_gravity="center"
+            android:elevation="4dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_contacts"
+            app:shapeAppearanceOverlay="@style/CircleImage"
+            app:strokeColor="@color/white"
+            app:strokeWidth="2dp" />
+    </FrameLayout>
+
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/barrierBottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="top"
+        app:constraint_referenced_ids="controlGrid,layoutInCallKeypad" />
+
+    <!-- Control Buttons Grid (Normal View) -->
+    <GridLayout
+        android:id="@+id/controlGrid"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="40dp"
+        android:columnCount="3"
+        android:rowCount="2"
+        app:layout_constraintBottom_toTopOf="@id/btnEndCall"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <LinearLayout
+            android:id="@+id/btnMute"
+            style="@style/SamsungControlContainer">
+            <ImageView
+                android:id="@+id/ivMute"
+                style="@style/SamsungControlIcon"
+                android:src="@drawable/ic_mic" />
+            <TextView
+                android:id="@+id/tvMute"
+                style="@style/SamsungControlText"
+                android:text="Mute" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnKeypadToggle"
+            style="@style/SamsungControlContainer">
+            <ImageView
+                style="@style/SamsungControlIcon"
+                android:src="@drawable/ic_keypad" />
+            <TextView
+                style="@style/SamsungControlText"
+                android:text="Keypad" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnSpeaker"
+            style="@style/SamsungControlContainer">
+            <ImageView
+                android:id="@+id/ivSpeaker"
+                style="@style/SamsungControlIcon"
+                android:src="@drawable/ic_speaker" />
+            <TextView
+                android:id="@+id/tvSpeaker"
+                style="@style/SamsungControlText"
+                android:text="Speaker" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnAddCall"
+            style="@style/SamsungControlContainer">
+            <ImageView
+                style="@style/SamsungControlIcon"
+                android:src="@drawable/ic_add" />
+            <TextView
+                style="@style/SamsungControlText"
+                android:text="Add call" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnVideoCallInCall"
+            style="@style/SamsungControlContainer">
+            <ImageView
+                style="@style/SamsungControlIcon"
+                android:src="@drawable/ic_video_call" />
+            <TextView
+                style="@style/SamsungControlText"
+                android:text="Video call" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnHold"
+            style="@style/SamsungControlContainer">
+            <ImageView
+                android:id="@+id/ivHold"
+                style="@style/SamsungControlIcon"
+                android:src="@drawable/ic_hold" />
+            <TextView
+                android:id="@+id/tvHold"
+                style="@style/SamsungControlText"
+                android:text="Hold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnMerge"
+            style="@style/SamsungControlContainer"
+            android:visibility="gone">
+            <ImageView
+                style="@style/SamsungControlIcon"
+                android:src="@drawable/ic_message" />
+            <TextView
+                style="@style/SamsungControlText"
+                android:text="Merge" />
+        </LinearLayout>
+    </GridLayout>
+
+    <!-- Ongoing Keypad Overlay (Interaction View) -->
+    <LinearLayout
+        android:id="@+id/layoutInCallKeypad"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/btnEndCall">
+
+        <TextView
+            android:id="@+id/tvKeypadDigits"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textColor="@color/white"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp" />
+
+        <GridLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:columnCount="3">
+            <FrameLayout style="@style/KeypadButtonFrameCompact" android:id="@+id/btnKey1"><TextView style="@style/KeypadButtonTextCompact" android:text="1" /></FrameLayout>
+            <FrameLayout style="@style/KeypadButtonFrameCompact" android:id="@+id/btnKey2"><TextView style="@style/KeypadButtonTextCompact" android:text="2" /></FrameLayout>
+            <FrameLayout style="@style/KeypadButtonFrameCompact" android:id="@+id/btnKey3"><TextView style="@style/KeypadButtonTextCompact" android:text="3" /></FrameLayout>
+            <FrameLayout style="@style/KeypadButtonFrameCompact" android:id="@+id/btnKey4"><TextView style="@style/KeypadButtonTextCompact" android:text="4" /></FrameLayout>
+            <FrameLayout style="@style/KeypadButtonFrameCompact" android:id="@+id/btnKey5"><TextView style="@style/KeypadButtonTextCompact" android:text="5" /></FrameLayout>
+            <FrameLayout style="@style/KeypadButtonFrameCompact" android:id="@+id/btnKey6"><TextView style="@style/KeypadButtonTextCompact" android:text="6" /></FrameLayout>
+            <FrameLayout style="@style/KeypadButtonFrameCompact" android:id="@+id/btnKey7"><TextView style="@style/KeypadButtonTextCompact" android:text="7" /></FrameLayout>
+            <FrameLayout style="@style/KeypadButtonFrameCompact" android:id="@+id/btnKey8"><TextView style="@style/KeypadButtonTextCompact" android:text="8" /></FrameLayout>
+            <FrameLayout style="@style/KeypadButtonFrameCompact" android:id="@+id/btnKey9"><TextView style="@style/KeypadButtonTextCompact" android:text="9" /></FrameLayout>
+            <FrameLayout style="@style/KeypadButtonFrameCompact" android:id="@+id/btnKeyStar"><TextView style="@style/KeypadButtonTextCompact" android:text="*" /></FrameLayout>
+            <FrameLayout style="@style/KeypadButtonFrameCompact" android:id="@+id/btnKey0"><TextView style="@style/KeypadButtonTextCompact" android:text="0" /></FrameLayout>
+            <FrameLayout style="@style/KeypadButtonFrameCompact" android:id="@+id/btnKeyHash"><TextView style="@style/KeypadButtonTextCompact" android:text="#" /></FrameLayout>
+        </GridLayout>
+
+        <TextView
+            android:id="@+id/btnHideKeypad"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="12dp"
+            android:text="Hide"
+            android:textColor="@color/accent_green"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+
+    <!-- End Call Pill Button Container -->
+    <FrameLayout
+        android:id="@+id/btnEndCall"
+        android:layout_width="0dp"
+        android:layout_height="72dp"
+        android:layout_marginStart="95dp"
+        android:layout_marginEnd="95dp"
+        android:layout_marginBottom="40dp"
+        android:background="@drawable/samsung_end_call_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:elevation="12dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <!-- Text Layer -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="End Call"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

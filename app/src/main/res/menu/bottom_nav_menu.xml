@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_keypad"
+        android:title="Keypad" />
+    <item
+        android:id="@+id/nav_recents"
+        android:title="Recents" />
+    <item
+        android:id="@+id/nav_contacts"
+        android:title="Contacts" />
+</menu>

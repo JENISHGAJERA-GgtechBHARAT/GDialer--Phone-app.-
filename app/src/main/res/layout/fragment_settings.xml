@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingBottom="80dp">
+
+        <!-- Header -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="24dp"
+            android:text="Call Settings"
+            android:textColor="@color/text_primary"
+            android:textSize="@dimen/text_size_header"
+            android:textStyle="bold" />
+
+        <!-- General Settings Group -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginBottom="8dp"
+            android:text="General"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            app:cardBackgroundColor="@color/card_bg"
+            app:cardCornerRadius="@dimen/oneui_card_radius"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- Sync with Accounts -->
+                <LinearLayout
+                    android:id="@+id/layoutAccountSync"
+                    style="@style/SettingsItemContainer"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <TextView style="@style/SettingsItemTitle" android:text="Sync with Google &amp; other accounts" />
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_info"
+                        app:tint="@color/text_secondary" />
+                </LinearLayout>
+
+                <View style="@style/SettingsDivider" />
+
+                <!-- Dark Mode -->
+                <LinearLayout style="@style/SettingsItemContainer">
+                    <TextView style="@style/SettingsItemTitle" android:text="Dark Mode" />
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchDarkMode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true" />
+                </LinearLayout>
+
+                <View style="@style/SettingsDivider" />
+
+                <!-- Spam Protection -->
+                <LinearLayout style="@style/SettingsItemContainer">
+                    <TextView style="@style/SettingsItemTitle" android:text="Spam &amp; Caller ID protection" />
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchSpam"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true" />
+                </LinearLayout>
+
+                <View style="@style/SettingsDivider" />
+
+                <!-- Swipe Gestures -->
+                <LinearLayout style="@style/SettingsItemContainer">
+                    <TextView style="@style/SettingsItemTitle" android:text="Swipe to call or message" />
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchSwipeGesture"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true" />
+                </LinearLayout>
+
+                <View style="@style/SettingsDivider" />
+
+                <!-- Blocked Numbers settings -->
+                <LinearLayout style="@style/SettingsItemContainer" android:id="@+id/layoutBlockListSettings" android:clickable="true" android:focusable="true">
+                    <TextView style="@style/SettingsItemTitle" android:text="Block numbers" />
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_info"
+                        app:tint="@color/text_secondary" />
+                </LinearLayout>
+
+                <View style="@style/SettingsDivider" />
+
+                <!-- Speed Dial Settings -->
+                <LinearLayout style="@style/SettingsItemContainer" android:id="@+id/layoutSpeedDialSettings" android:clickable="true" android:focusable="true">
+                    <TextView style="@style/SettingsItemTitle" android:text="Speed dial numbers" />
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_info"
+                        app:tint="@color/text_secondary" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Call Settings Group -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginBottom="8dp"
+            android:text="Call Recording"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            app:cardBackgroundColor="@color/card_bg"
+            app:cardCornerRadius="@dimen/oneui_card_radius"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- Auto Record Calls -->
+                <LinearLayout style="@style/SettingsItemContainer">
+                    <TextView style="@style/SettingsItemTitle" android:text="Auto record calls" />
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchAutoRecord"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <View style="@style/SettingsDivider" />
+
+                <!-- Record Unknown Numbers -->
+                <LinearLayout style="@style/SettingsItemContainer">
+                    <TextView style="@style/SettingsItemTitle" android:text="Record unknown numbers" />
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchRecordUnknown"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <View style="@style/SettingsDivider" />
+
+                <!-- Recording History -->
+                <LinearLayout style="@style/SettingsItemContainer" android:id="@+id/layoutRecordingHistory" android:clickable="true" android:focusable="true">
+                    <TextView style="@style/SettingsItemTitle" android:text="Recorded calls history" />
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_info"
+                        app:tint="@color/text_secondary" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Other System Settings Group -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginBottom="8dp"
+            android:text="System &amp; SIM"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/card_bg"
+            app:cardCornerRadius="@dimen/oneui_card_radius"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- Vibrations -->
+                <LinearLayout style="@style/SettingsItemContainer">
+                    <TextView style="@style/SettingsItemTitle" android:text="Call vibrations &amp; alerts" />
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchVibration"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true" />
+                </LinearLayout>
+
+                <View style="@style/SettingsDivider" />
+
+                <!-- SIM settings -->
+                <LinearLayout style="@style/SettingsItemContainer" android:id="@+id/layoutSimSettings" android:clickable="true" android:focusable="true">
+                    <TextView style="@style/SettingsItemTitle" android:text="Dual SIM &amp; network settings" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

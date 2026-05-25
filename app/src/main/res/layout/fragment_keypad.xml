@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black"
+    android:padding="16dp"
+    android:paddingBottom="100dp">
+
+    <!-- Top Header Toolbar for 3-dots menu -->
+    <RelativeLayout
+        android:id="@+id/layoutKeypadHeader"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageButton
+            android:id="@+id/btnKeypadMenu"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_menu_dots"
+            android:contentDescription="Menu"
+            app:tint="@color/white" />
+    </RelativeLayout>
+
+    <!-- Top Action Links (Add to contacts/Create contact) -->
+    <LinearLayout
+        android:id="@+id/layoutKeypadActions"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal"
+        android:visibility="invisible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layoutKeypadHeader">
+
+        <TextView
+            android:id="@+id/tvCreateContact"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Create contact"
+            android:textColor="@color/accent_green"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginEnd="16dp" />
+
+        <TextView
+            android:id="@+id/tvAddToContact"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Update existing"
+            android:textColor="@color/accent_green"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+
+    <!-- Number Display -->
+    <TextView
+        android:id="@+id/tvDialedNumber"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:hint="Dial a number"
+        android:textColorHint="@color/text_secondary"
+        android:textColor="@color/text_primary"
+        android:textSize="38sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layoutKeypadActions" />
+
+    <!-- T9 Suggestions List (Slides up above keypad) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvT9Suggestions"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginBottom="16dp"
+        app:layout_constraintBottom_toTopOf="@id/keypadGrid"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvDialedNumber" />
+
+    <!-- Keypad Grid Layout -->
+    <GridLayout
+        android:id="@+id/keypadGrid"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:columnCount="3"
+        android:rowCount="4"
+        app:layout_constraintBottom_toTopOf="@id/layoutKeypadBottomBar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <!-- Button 1 -->
+        <FrameLayout style="@style/KeypadButtonFrame">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView android:id="@+id/tvKey1" style="@style/KeypadButtonText" android:text="1" />
+                <TextView style="@style/KeypadSubText" android:text="o_o" android:visibility="invisible" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Button 2 -->
+        <FrameLayout style="@style/KeypadButtonFrame">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView android:id="@+id/tvKey2" style="@style/KeypadButtonText" android:text="2" />
+                <TextView style="@style/KeypadSubText" android:text="ABC" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Button 3 -->
+        <FrameLayout style="@style/KeypadButtonFrame">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView android:id="@+id/tvKey3" style="@style/KeypadButtonText" android:text="3" />
+                <TextView style="@style/KeypadSubText" android:text="DEF" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Button 4 -->
+        <FrameLayout style="@style/KeypadButtonFrame">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView android:id="@+id/tvKey4" style="@style/KeypadButtonText" android:text="4" />
+                <TextView style="@style/KeypadSubText" android:text="GHI" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Button 5 -->
+        <FrameLayout style="@style/KeypadButtonFrame">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView android:id="@+id/tvKey5" style="@style/KeypadButtonText" android:text="5" />
+                <TextView style="@style/KeypadSubText" android:text="JKL" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Button 6 -->
+        <FrameLayout style="@style/KeypadButtonFrame">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView android:id="@+id/tvKey6" style="@style/KeypadButtonText" android:text="6" />
+                <TextView style="@style/KeypadSubText" android:text="MNO" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Button 7 -->
+        <FrameLayout style="@style/KeypadButtonFrame">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView android:id="@+id/tvKey7" style="@style/KeypadButtonText" android:text="7" />
+                <TextView style="@style/KeypadSubText" android:text="PQRS" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Button 8 -->
+        <FrameLayout style="@style/KeypadButtonFrame">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView android:id="@+id/tvKey8" style="@style/KeypadButtonText" android:text="8" />
+                <TextView style="@style/KeypadSubText" android:text="TUV" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Button 9 -->
+        <FrameLayout style="@style/KeypadButtonFrame">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView android:id="@+id/tvKey9" style="@style/KeypadButtonText" android:text="9" />
+                <TextView style="@style/KeypadSubText" android:text="WXYZ" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Button * -->
+        <FrameLayout style="@style/KeypadButtonFrame">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView android:id="@+id/tvKeyStar" style="@style/KeypadButtonText" android:text="*" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Button 0 -->
+        <FrameLayout style="@style/KeypadButtonFrame">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView android:id="@+id/tvKey0" style="@style/KeypadButtonText" android:text="0" />
+                <TextView style="@style/KeypadSubText" android:text="+" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Button # -->
+        <FrameLayout style="@style/KeypadButtonFrame">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView android:id="@+id/tvKeyHash" style="@style/KeypadButtonText" android:text="#" />
+            </LinearLayout>
+        </FrameLayout>
+
+    </GridLayout>
+
+    <!-- Bottom Row (Video Call | Green Call | Backspace) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layoutKeypadBottomBar"
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <!-- Left: Video Call -->
+        <ImageButton
+            android:id="@+id/btnVideoCall"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginStart="48dp"
+            android:background="@drawable/keypad_button"
+            android:src="@drawable/ic_video_call"
+            android:padding="16dp"
+            app:tint="@color/white"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Center: Call Buttons Container -->
+        <LinearLayout
+            android:id="@+id/layoutCallButtons"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <!-- Primary Call Button -->
+            <ImageButton
+                android:id="@+id/btnCall"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:background="@drawable/green_circle"
+                android:src="@drawable/ic_phone"
+                app:tint="@color/black" />
+
+            <!-- Secondary Call Button (SIM 2) - Hidden by default -->
+            <ImageButton
+                android:id="@+id/btnCallSim2"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_marginStart="16dp"
+                android:background="@drawable/green_circle"
+                android:src="@drawable/ic_phone"
+                android:visibility="gone"
+                app:tint="@color/black" />
+        </LinearLayout>
+
+        <!-- Right: Backspace (visible only when dialing) -->
+        <ImageButton
+            android:id="@+id/btnBackspace"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_backspace"
+            android:visibility="invisible"
+            app:tint="@color/white"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.Guideline android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
