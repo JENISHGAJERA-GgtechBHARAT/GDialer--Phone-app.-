@@ -89,6 +89,9 @@ public class ContactsFragment extends Fragment {
                     List<ContactModel> all = database.contactDao().getAllContactsSync();
                     for (ContactModel c : all) {
                         if (ids.contains(c.getId())) {
+                            // SYNC DELETE TO GOOGLE
+                            deleteFromSystemContacts(c.getNumber());
+                            
                             database.recentDao().deleteByNumber(c.getNumber());
                             database.contactDao().delete(c);
                         }
@@ -142,6 +145,22 @@ public class ContactsFragment extends Fragment {
         })).attachToRecyclerView(rvContacts);
 
         return view;
+    }
+
+    private void deleteFromSystemContacts(String number) {
+        if (number == null || number.isEmpty()) return;
+        try {
+            android.net.Uri contactUri = android.net.Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, android.net.Uri.encode(number));
+            Cursor cursor = requireContext().getContentResolver().query(contactUri, new String[]{ContactsContract.PhoneLookup._ID, ContactsContract.PhoneLookup.LOOKUP_KEY}, null, null, null);
+            if (cursor != null) {
+                while (cursor.moveToNext()) {
+                    String lookupKey = cursor.getString(1);
+                    android.net.Uri uri = android.net.Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_LOOKUP_URI, lookupKey);
+                    requireContext().getContentResolver().delete(uri, null, null);
+                }
+                cursor.close();
+            }
+        } catch (Exception e) { Log.e("ContactsFragment", "System delete failed", e); }
     }
 
     private void setupSideIndex() {

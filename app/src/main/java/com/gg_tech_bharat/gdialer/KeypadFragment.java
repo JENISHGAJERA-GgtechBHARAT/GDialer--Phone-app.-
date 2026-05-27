@@ -66,6 +66,20 @@ public class KeypadFragment extends Fragment implements View.OnClickListener {
         adapter = new ContactAdapter(requireContext());
         rvSuggestions.setAdapter(adapter);
 
+        // ADD SWIPE SUPPORT TO KEYPAD SUGGESTIONS
+        new androidx.recyclerview.widget.ItemTouchHelper(new SwipeToCallMessageCallback(requireContext(), new SwipeToCallMessageCallback.SwipeActionListener() {
+            @Override public void onCallAction(int p) {
+                ContactModel c = adapter.getContactAt(p);
+                if (c != null) Utils.makePhoneCall(requireContext(), c.getNumber());
+                adapter.notifyItemChanged(p);
+            }
+            @Override public void onMessageAction(int p) {
+                ContactModel c = adapter.getContactAt(p);
+                if (c != null) Utils.sendSMS(requireContext(), c.getNumber(), "");
+                adapter.notifyItemChanged(p);
+            }
+        })).attachToRecyclerView(rvSuggestions);
+
         if (btnKeypadMenu != null) btnKeypadMenu.setOnClickListener(this::showKeypadPopupMenu);
 
         int[] keys = {R.id.tvKey1, R.id.tvKey2, R.id.tvKey3, R.id.tvKey4, R.id.tvKey5, R.id.tvKey6, R.id.tvKey7, R.id.tvKey8, R.id.tvKey9, R.id.tvKeyStar, R.id.tvKey0, R.id.tvKeyHash};

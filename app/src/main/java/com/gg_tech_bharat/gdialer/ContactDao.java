@@ -50,4 +50,10 @@ public interface ContactDao {
 
     @Query("SELECT * FROM contacts WHERE normalizedNumber LIKE '%' || :lastDigits LIMIT 1")
     ContactModel getContactByLastDigits(String lastDigits);
+
+    @Query("DELETE FROM contacts WHERE id NOT IN (SELECT MIN(id) FROM contacts GROUP BY normalizedNumber)")
+    void deleteDuplicates();
+
+    @Query("DELETE FROM contacts WHERE number = :number")
+    void deleteByNumber(String number);
 }

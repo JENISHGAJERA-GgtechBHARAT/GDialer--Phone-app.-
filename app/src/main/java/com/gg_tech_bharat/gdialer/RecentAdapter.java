@@ -136,36 +136,82 @@ public class RecentAdapter extends RecyclerView.Adapter<RecentAdapter.RecentView
     public void onBindViewHolder(@NonNull RecentViewHolder holder, int position) {
         RecentModel recent = filteredList.get(position);
         
-        String displayName = (recent.getName() != null && !recent.getName().isEmpty()) ? recent.getName() : recent.getNumber();
-        holder.tvName.setText(displayName);
+        String number = recent.getNumber();
+        String currentName = recent.getName();
+        String initialDisplay = (currentName != null && !currentName.isEmpty()) ? currentName : number;
+        holder.tvName.setText(initialDisplay);
         
-        // Asynchronous name lookup for unknown numbers if not already set
-        if (recent.getName() == null || recent.getName().isEmpty()) {
-            AppDatabase.databaseWriteExecutor.execute(() -> {
-                ContactModel contact = AppDatabase.getDatabase(context).contactDao().getContactByNumber(recent.getNumber());
-                if (contact != null) {
-                    recent.setName(contact.getName());
-                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                        holder.tvName.setText(contact.getName());
-                    });
+        // Initial fallback
+        holder.ivAvatar.setImageResource(R.drawable.ic_contacts);
+
+        // Dynamic name & photo refresh: Handles newly saved contacts, updated names, or deleted contacts
+        AppDatabase.databaseWriteExecutor.execute(() -> {
+            if ("Conference".equals(number)) {
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                    holder.tvName.setText("Conference call");
+                    holder.ivAvatar.setImageResource(R.drawable.ic_contacts);
+                });
+                return;
+            }
+
+            // High-reliability lookup: Use normalized number and last 10 digits fallback
+            ContactDao dao = AppDatabase.getDatabase(context).contactDao();
+            String normalizedRecent = Utils.normalizePhoneNumber(number);
+            ContactModel contact = dao.getContactByNormalizedNumber(normalizedRecent);
+            
+            if (contact == null && normalizedRecent.length() >= 10) {
+                contact = dao.getContactByLastDigits(normalizedRecent.substring(normalizedRecent.length() - 10));
+            }
+
+            String foundName = null;
+            String photoUri = null;
+
+            if (contact != null) {
+                foundName = contact.getName();
+                photoUri = contact.getPhotoUri();
+            } else {
+                // Fallback to System Contacts if not in app DB
+                foundName = Utils.queryContactName(context, number);
+                if (foundName != null) {
+                    photoUri = querySystemContactPhotoUri(number);
                 }
+            }
+
+            final String finalPhotoUri = photoUri;
+            final String finalName = foundName;
+
+            // Update UI with latest information
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                // If name is null (contact deleted), revert to phone number
+                String nameToDisplay = (finalName != null && !finalName.isEmpty()) ? finalName : number;
+                
+                // Update local object and UI if changed
+                if (holder.getBindingAdapterPosition() == RecyclerView.NO_POSITION) return;
+
+                if (!nameToDisplay.equals(holder.tvName.getText().toString())) {
+                    recent.setName(finalName);
+                    holder.tvName.setText(nameToDisplay);
+                }
+                
+                // Always load/refresh photo to ensure it's "clear" and updated
+                Utils.loadContactPhoto(context, finalPhotoUri, holder.ivAvatar);
             });
-        }
+        });
 
         holder.tvDetails.setText(String.format("%s • %s", Utils.formatTimestamp(recent.getTimestamp()), Utils.formatDuration(recent.getDuration())));
 
-        int icon = R.drawable.ic_incoming;
-        int color = R.color.white;
+        int callIcon = R.drawable.ic_incoming;
+        int callColor = R.color.white;
         if (recent.getCallType() == 2) {
-            icon = R.drawable.ic_outgoing;
-            color = R.color.gray_light; // Gray for outgoing
+            callIcon = R.drawable.ic_outgoing;
+            callColor = R.color.gray_light; 
         } else if (recent.getCallType() == 3) {
-            icon = R.drawable.ic_missed;
-            color = R.color.call_missed; // Red for missed
+            callIcon = R.drawable.ic_missed;
+            callColor = R.color.call_missed; 
         }
         
-        holder.ivTypeIcon.setImageResource(icon);
-        holder.ivTypeIcon.setColorFilter(androidx.core.content.ContextCompat.getColor(context, color));
+        holder.ivTypeIcon.setImageResource(callIcon);
+        holder.ivTypeIcon.setColorFilter(androidx.core.content.ContextCompat.getColor(context, callColor));
 
         holder.ivRecordingBadge.setVisibility(recent.isRecorded() ? View.VISIBLE : View.GONE);
         holder.ivRecordingBadge.setOnClickListener(v -> { Utils.triggerHaptic(v); playRecording(recent.getRecordingPath()); });
@@ -205,6 +251,18 @@ public class RecentAdapter extends RecyclerView.Adapter<RecentAdapter.RecentView
         holder.btnExpandInfo.setOnClickListener(v -> { Utils.triggerHaptic(v); context.startActivity(new Intent(context, ContactDetailsActivity.class).putExtra("EXTRA_NUMBER", recent.getNumber())); });
     }
 
+    private String querySystemContactPhotoUri(String number) {
+        if (number == null || number.isEmpty()) return null;
+        try {
+            android.net.Uri uri = android.net.Uri.withAppendedPath(android.provider.ContactsContract.PhoneLookup.CONTENT_FILTER_URI, android.net.Uri.encode(number));
+            String[] projection = new String[]{android.provider.ContactsContract.PhoneLookup.PHOTO_URI};
+            try (android.database.Cursor cursor = context.getContentResolver().query(uri, projection, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) return cursor.getString(0);
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
     private void playRecording(String path) {
         if (path == null || path.isEmpty()) return;
         File f = new File(path);
@@ -220,7 +278,7 @@ public class RecentAdapter extends RecyclerView.Adapter<RecentAdapter.RecentView
 
     static class RecentViewHolder extends RecyclerView.ViewHolder {
         TextView tvName, tvDetails;
-        ImageView ivTypeIcon, ivRecordingBadge;
+        ImageView ivTypeIcon, ivRecordingBadge, ivAvatar;
         CheckBox cbSelect;
         View layoutActions;
         ImageButton btnExpandCall, btnExpandMessage, btnExpandVideo, btnExpandInfo;
@@ -230,6 +288,7 @@ public class RecentAdapter extends RecyclerView.Adapter<RecentAdapter.RecentView
             tvDetails = itemView.findViewById(R.id.tvRecentDetails);
             ivTypeIcon = itemView.findViewById(R.id.ivCallTypeIcon);
             ivRecordingBadge = itemView.findViewById(R.id.ivRecordingBadge);
+            ivAvatar = itemView.findViewById(R.id.ivRecentAvatar);
             cbSelect = itemView.findViewById(R.id.cbSelect);
             layoutActions = itemView.findViewById(R.id.layoutRecentExpandableActions);
             btnExpandCall = itemView.findViewById(R.id.btnExpandCall);

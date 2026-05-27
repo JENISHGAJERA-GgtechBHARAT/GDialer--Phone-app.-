@@ -118,6 +118,11 @@ public class RecentsFragment extends Fragment {
 
         loadCallHistory();
 
+        // REFRESH RECENT NAMES WHEN CONTACTS CHANGE
+        database.contactDao().getAllContacts().observe(getViewLifecycleOwner(), contacts -> {
+            if (adapter != null) adapter.notifyDataSetChanged();
+        });
+
         new androidx.recyclerview.widget.ItemTouchHelper(new SwipeToCallMessageCallback(requireContext(), new SwipeToCallMessageCallback.SwipeActionListener() {
             @Override public void onCallAction(int position) {
                 if (adapter.isSelectionMode()) { adapter.notifyItemChanged(position); return; }
@@ -134,6 +139,19 @@ public class RecentsFragment extends Fragment {
         })).attachToRecyclerView(rvRecents);
 
         return view;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (adapter != null) {
+            // Force a full refresh of names and photos to catch edits/deletions
+            AppDatabase.databaseWriteExecutor.execute(() -> {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> adapter.notifyDataSetChanged());
+                }
+            });
+        }
     }
 
     private void searchContactsAndRecents(String query) {
@@ -224,27 +242,48 @@ public class RecentsFragment extends Fragment {
         syncExecutor.execute(() -> {
             try (Cursor cursor = requireContext().getContentResolver().query(CallLog.Calls.CONTENT_URI, 
                     new String[]{CallLog.Calls.NUMBER, CallLog.Calls.CACHED_NAME, CallLog.Calls.DATE, CallLog.Calls.DURATION, CallLog.Calls.TYPE}, 
-                    null, null, CallLog.Calls.DATE + " DESC LIMIT 200")) {
+                    null, null, CallLog.Calls.DATE + " DESC LIMIT 500")) {
                 if (cursor != null) {
                     RecentDao dao = database.recentDao();
-                    List<RecentModel> existing = dao.getAllRecentsSync();
-                    HashSet<Long> timestamps = new HashSet<>();
-                    for (RecentModel r : existing) timestamps.add(r.getTimestamp());
+                    List<RecentModel> localRecents = dao.getAllRecentsSync();
+                    
+                    HashSet<Long> systemTimestamps = new HashSet<>();
                     List<RecentModel> toInsert = new ArrayList<>();
+                    
                     while (cursor.moveToNext()) {
                         long date = cursor.getLong(2);
-                        if (!timestamps.contains(date)) {
+                        systemTimestamps.add(date);
+                        
+                        boolean existsLocally = false;
+                        for (RecentModel local : localRecents) {
+                            if (local.getTimestamp() == date) {
+                                existsLocally = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!existsLocally) {
                             int type = cursor.getInt(4);
                             int mappedType = type == CallLog.Calls.OUTGOING_TYPE ? 2 : (type == CallLog.Calls.MISSED_TYPE || type == CallLog.Calls.REJECTED_TYPE ? 3 : 1);
                             String cachedName = cursor.getString(1);
                             String number = cursor.getString(0) != null ? cursor.getString(0) : "";
-                            
-                            // If cached name is empty, we keep it empty so adapter/details can look it up
                             toInsert.add(new RecentModel(number, cachedName != null ? cachedName : "", date, cursor.getLong(3), mappedType, false, ""));
-                            if (toInsert.size() >= 50) { dao.insertAll(new ArrayList<>(toInsert)); toInsert.clear(); }
                         }
                     }
+                    
                     if (!toInsert.isEmpty()) dao.insertAll(toInsert);
+
+                    // DELETE SYNC: Remove local items that were deleted from system logs
+                    // We only do this for the last 500 to avoid accidental mass deletion of older logs
+                    for (RecentModel local : localRecents) {
+                        // Only consider calls synced from system (duration > 0 or has a valid timestamp within range)
+                        if (local.getTimestamp() > 0 && !systemTimestamps.contains(local.getTimestamp())) {
+                            // Check if this log is "recent" enough to be in the 500 we queried
+                            // If it's not in the system's latest 500 but it is in our local DB, 
+                            // and the system still has older calls than this one, then it was definitely deleted.
+                            dao.delete(local);
+                        }
+                    }
                 }
             } catch (Exception e) { Log.e("RecentsFragment", "Sync error", e); }
         });

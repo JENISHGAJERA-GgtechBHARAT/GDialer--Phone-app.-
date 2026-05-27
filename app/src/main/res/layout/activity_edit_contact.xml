@@ -87,18 +87,17 @@
 
                 <!-- Overlay Camera Edit Badge -->
                 <FrameLayout
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:layout_gravity="bottom|end"
                     android:background="@drawable/green_circle"
-                    android:elevation="4dp">
+                    android:elevation="6dp">
 
                     <ImageView
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_info"
-                        android:rotation="45"
+                        android:src="@drawable/ic_camera"
                         app:tint="@color/black" />
                 </FrameLayout>
             </FrameLayout>
@@ -179,7 +178,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
                     android:background="@null"
-                    android:hint="Add notes (e.g. Work, Family)"
+                    android:hint="Add notes"
                     android:inputType="text"
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_secondary"

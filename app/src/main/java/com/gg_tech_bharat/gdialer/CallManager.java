@@ -4,11 +4,12 @@ import android.telecom.Call;
 import android.telecom.CallAudioState;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class CallManager {
 
     public static Call sCurrentCall;
-    private static final List<Call> sCalls = new ArrayList<>();
+    private static final List<Call> sCalls = new CopyOnWriteArrayList<>();
 
     public interface CallStateListener {
         void onStateChanged(int state);
@@ -16,30 +17,72 @@ public class CallManager {
         default void onAudioStateChanged(CallAudioState audioState) {}
     }
 
-    private static CallStateListener sListener;
+    private static final List<CallStateListener> sListeners = new CopyOnWriteArrayList<>();
 
     public static void registerListener(CallStateListener listener) {
-        sListener = listener;
+        if (listener != null && !sListeners.contains(listener)) {
+            sListeners.add(listener);
+        }
+    }
+
+    public static void unregisterListener(CallStateListener listener) {
+        if (listener != null) {
+            sListeners.remove(listener);
+        }
     }
 
     public static void unregisterListener() {
-        sListener = null;
+        sListeners.clear();
     }
 
     public static void addCall(Call call) {
-        if (!sCalls.contains(call)) {
+        if (call != null && !sCalls.contains(call)) {
             sCalls.add(call);
-            if (sCurrentCall == null) sCurrentCall = call;
-            if (sListener != null) sListener.onCallListChanged();
+            updateCurrentCall();
+            notifyCallListChanged();
         }
     }
 
     public static void removeCall(Call call) {
-        sCalls.remove(call);
-        if (sCurrentCall == call) {
-            sCurrentCall = sCalls.isEmpty() ? null : sCalls.get(0);
+        if (call != null) {
+            sCalls.remove(call);
+            updateCurrentCall();
+            notifyCallListChanged();
         }
-        if (sListener != null) sListener.onCallListChanged();
+    }
+
+    private static synchronized void updateCurrentCall() {
+        if (sCalls.isEmpty()) {
+            sCurrentCall = null;
+            return;
+        }
+        
+        // Priority: Ringing > Active > Dialing > Connecting > Holding
+        for (Call c : sCalls) {
+            if (c.getState() == Call.STATE_RINGING) {
+                sCurrentCall = c;
+                return;
+            }
+        }
+        for (Call c : sCalls) {
+            if (c.getState() == Call.STATE_ACTIVE) {
+                sCurrentCall = c;
+                return;
+            }
+        }
+        for (Call c : sCalls) {
+            int s = c.getState();
+            if (s == Call.STATE_DIALING || s == Call.STATE_CONNECTING) {
+                sCurrentCall = c;
+                return;
+            }
+        }
+        // Fallback to first available call
+        if (!sCalls.isEmpty()) {
+            sCurrentCall = sCalls.get(0);
+        } else {
+            sCurrentCall = null;
+        }
     }
 
     public static List<Call> getCalls() {
@@ -47,14 +90,28 @@ public class CallManager {
     }
 
     public static void updateState(int state) {
-        if (sListener != null) {
-            sListener.onStateChanged(state);
+        updateCurrentCall();
+        for (CallStateListener l : sListeners) {
+            l.onStateChanged(state);
         }
     }
 
     public static void updateAudioState(CallAudioState audioState) {
-        if (sListener != null) {
-            sListener.onAudioStateChanged(audioState);
+        for (CallStateListener l : sListeners) {
+            l.onAudioStateChanged(audioState);
+        }
+    }
+    
+    public static Call getRingingCall() {
+        for (Call c : sCalls) {
+            if (c.getState() == Call.STATE_RINGING) return c;
+        }
+        return null;
+    }
+
+    private static void notifyCallListChanged() {
+        for (CallStateListener l : sListeners) {
+            l.onCallListChanged();
         }
     }
 }

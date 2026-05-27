@@ -7,6 +7,7 @@ import android.os.Build;
 import android.os.Vibrator;
 import android.telecom.TelecomManager;
 import android.telecom.VideoProfile;
+import android.util.Log;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
 import android.widget.Toast;
@@ -61,13 +62,39 @@ public class Utils {
     }
 
     public static void sendSMS(Context context, String number, String msg) {
+        if (number == null || number.isEmpty()) return;
         try {
-            Intent intent = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + number));
-            intent.putExtra("sms_body", msg);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
+            // Reliable Samsung Style: If message is provided, try sending. If not or if it fails, open SMS app.
+            String cleanNumber = number.replaceAll("[^0-9+]", "");
+            
+            if (msg == null || msg.trim().isEmpty()) {
+                Intent intent = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + cleanNumber));
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+                return;
+            }
+
+            android.telephony.SmsManager smsManager;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                smsManager = context.getSystemService(android.telephony.SmsManager.class);
+            } else {
+                smsManager = android.telephony.SmsManager.getDefault();
+            }
+            
+            if (smsManager != null) {
+                smsManager.sendTextMessage(cleanNumber, null, msg, null, null);
+                Toast.makeText(context, "Message sent to " + cleanNumber, Toast.LENGTH_SHORT).show();
+            }
         } catch (Exception e) {
-            Toast.makeText(context, "Cannot open SMS", Toast.LENGTH_SHORT).show();
+            Log.e("Utils", "SMS action failed", e);
+            try {
+                String cleanNumber = number.replaceAll("[^0-9+]", "");
+                Intent intent = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + cleanNumber));
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+            } catch (Exception fatal) {
+                Toast.makeText(context, "Failed to send SMS", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
@@ -113,7 +140,7 @@ public class Utils {
                 .load(uri == null || uri.isEmpty() ? R.drawable.ic_contacts : uri)
                 .placeholder(R.drawable.ic_contacts)
                 .error(R.drawable.ic_contacts)
-                .override(120, 120)
+                .override(480, 480) // High-fidelity size for "clear" images
                 .circleCrop()
                 .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
                 .into(iv);

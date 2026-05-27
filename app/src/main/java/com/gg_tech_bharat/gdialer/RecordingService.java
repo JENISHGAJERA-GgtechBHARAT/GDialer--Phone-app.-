@@ -7,6 +7,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.media.AudioManager;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Environment;
@@ -40,8 +41,7 @@ public class RecordingService extends Service {
         String action = intent.getAction();
         if ("START_RECORDING".equals(action)) {
             String callerName = intent.getStringExtra("CALLER_NAME");
-            // Delay to allow audio focus and routing to stabilize
-            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> startRecording(callerName), 2000);
+            startRecording(callerName);
         } else if ("STOP_RECORDING".equals(action)) {
             stopRecording();
         }
@@ -61,8 +61,6 @@ public class RecordingService extends Service {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_NONE);
         } else {
             startForeground(NOTIFICATION_ID, notification);
         }
@@ -74,39 +72,46 @@ public class RecordingService extends Service {
 
             outputFilePath = sampleDir.getAbsolutePath() + "/Call_" + System.currentTimeMillis() + ".m4a";
 
-            // Optimization for audible conversation:
-            // 1. Force Audio Manager to IN_COMMUNICATION mode
-            // 2. Use MediaRecorder with a small handshake delay
-            android.media.AudioManager audioManager = (android.media.AudioManager) getSystemService(Context.AUDIO_SERVICE);
-            if (audioManager != null) {
-                audioManager.setMode(android.media.AudioManager.MODE_IN_COMMUNICATION);
-            }
+            AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
-            // Delay recording start by 1.5 seconds for complete hardware stabilization
             new Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
                 try {
+                    // Set mode to IN_COMMUNICATION to enable capturing two-way audio
+                    if (audioManager != null) {
+                        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                        // MAX VOLUME for communication to help loopback capture
+                        audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, 
+                                audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL), 0);
+                        
+                        // Force speaker for physical mic pickup of remote party
+                        if (InCallServiceImpl.sInstance != null) {
+                            InCallServiceImpl.sInstance.setAudioRoute(android.telecom.CallAudioState.ROUTE_SPEAKER);
+                        }
+                    }
+
+                    // Double ensure mode is switched before media recorder starts
+                    if (audioManager != null) audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+
                     mediaRecorder = new MediaRecorder();
-                    // Switched to VOICE_COMMUNICATION as a primary attempt for 2-way audio
-                    // on some devices this is the only way to get both sides.
+                    // VOICE_COMMUNICATION captures both ways if hardware allows.
                     mediaRecorder.setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION); 
                     mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
                     mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
                     mediaRecorder.setAudioSamplingRate(48000); 
-                    mediaRecorder.setAudioEncodingBitRate(256000); 
+                    mediaRecorder.setAudioEncodingBitRate(192000); // Specified 192kbps
                     mediaRecorder.setOutputFile(outputFilePath);
 
                     mediaRecorder.prepare();
                     mediaRecorder.start();
                     isRecording = true;
-                    Log.d("RecordingService", "VOICE_COMMUNICATION recording started: " + outputFilePath);
-                    
+                    Log.d("RecordingService", "Hardware-synced recording started: " + outputFilePath);
                 } catch (Exception ex) {
-                    Log.e("RecordingService", "VOICE_COMMUNICATION failed, trying high-gain MIC", ex);
+                    Log.e("RecordingService", "Primary capture failed, trying high-gain MIC", ex);
                     try {
                         if (mediaRecorder != null) mediaRecorder.release();
                         mediaRecorder = new MediaRecorder();
-                        // CAMCORDER often has higher gain and bypasses noise cancellation
-                        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
+                        // MIC is the most reliable fallback if hardware blocks Voice Communication
+                        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
                         mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
                         mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
                         mediaRecorder.setOutputFile(outputFilePath);
@@ -114,26 +119,13 @@ public class RecordingService extends Service {
                         mediaRecorder.start();
                         isRecording = true;
                     } catch (Exception fatal) {
-                        Log.e("RecordingService", "Fatal audio error - trying raw MIC as last resort", fatal);
-                        try {
-                            if (mediaRecorder != null) mediaRecorder.release();
-                            mediaRecorder = new MediaRecorder();
-                            mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-                            mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-                            mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-                            mediaRecorder.setOutputFile(outputFilePath);
-                            mediaRecorder.prepare();
-                            mediaRecorder.start();
-                            isRecording = true;
-                        } catch (Exception extremelyFatal) {
-                             Log.e("RecordingService", "All sources failed", extremelyFatal);
-                        }
+                         Log.e("RecordingService", "Audio engine error", fatal);
                     }
                 }
-            }, 1500);
+            }, 1800); // 1.8s delay to ensure hardware is fully switched to Communication mode
             
         } catch (Exception e) {
-            Log.e("RecordingService", "Setup failed", e);
+            Log.e("RecordingService", "Setup error", e);
             stopSelf();
         }
     }
@@ -161,7 +153,7 @@ public class RecordingService extends Service {
             intent.putExtra("RECORDING_PATH", outputFilePath);
             sendBroadcast(intent);
         } catch (Exception e) {
-            Log.e("RecordingService", "Error stopping recording", e);
+            Log.e("RecordingService", "Error stopping", e);
             if (mediaRecorder != null) mediaRecorder.release();
             mediaRecorder = null;
         } finally {

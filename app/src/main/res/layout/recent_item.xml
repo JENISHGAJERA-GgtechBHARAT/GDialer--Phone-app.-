@@ -33,23 +33,38 @@
         <!-- Call Type Icon (Incoming / Outgoing / Missed) -->
         <ImageView
             android:id="@+id/ivCallTypeIcon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
             android:src="@drawable/ic_incoming"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/cbSelect"
             app:layout_constraintTop_toTopOf="parent" />
 
+        <!-- Profile Picture / Avatar -->
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivRecentAvatar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="12dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_contacts"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/ivCallTypeIcon"
+            app:layout_constraintTop_toTopOf="parent"
+            app:shapeAppearanceOverlay="@style/CircleImage"
+            app:strokeColor="#1AFFFFFF"
+            app:strokeWidth="1dp" />
+
         <!-- Name / Number & Timestamp -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="12dp"
             android:orientation="vertical"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/ivRecordingBadge"
-            app:layout_constraintStart_toEndOf="@id/ivCallTypeIcon"
+            app:layout_constraintStart_toEndOf="@id/ivRecentAvatar"
             app:layout_constraintTop_toTopOf="parent">
 
             <TextView

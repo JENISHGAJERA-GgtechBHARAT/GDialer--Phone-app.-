@@ -33,93 +33,34 @@ public class ContactModel {
         this.normalizedNumber = number != null ? number.replaceAll("[^0-9]", "") : "";
     }
 
-    // Getters and Setters
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-        updateNormalizedFields();
-    }
-
-    public String getNumber() {
-        return number;
-    }
-
-    public void setNumber(String number) {
-        this.number = number;
-        updateNormalizedFields();
-    }
-
-    public String getNormalizedName() {
-        return normalizedName;
-    }
-
-    public void setNormalizedName(String normalizedName) {
-        this.normalizedName = normalizedName;
-    }
-
-    public String getNormalizedNumber() {
-        return normalizedNumber;
-    }
-
-    public void setNormalizedNumber(String normalizedNumber) {
-        this.normalizedNumber = normalizedNumber;
-    }
-
-    public String getPhotoUri() {
-        return photoUri;
-    }
-
-    public void setPhotoUri(String photoUri) {
-        this.photoUri = photoUri;
-    }
-
-    public boolean isFavorite() {
-        return isFavorite;
-    }
-
-    public void setFavorite(boolean favorite) {
-        isFavorite = favorite;
-    }
-
-    public boolean isSpam() {
-        return isSpam;
-    }
-
-    public void setSpam(boolean spam) {
-        isSpam = spam;
-    }
-
-    public String getNotes() {
-        return notes;
-    }
-
-    public void setNotes(String notes) {
-        this.notes = notes;
-    }
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; updateNormalizedFields(); }
+    public String getNumber() { return number; }
+    public void setNumber(String number) { this.number = number; updateNormalizedFields(); }
+    public String getNormalizedName() { return normalizedName; }
+    public void setNormalizedName(String normalizedName) { this.normalizedName = normalizedName; }
+    public String getNormalizedNumber() { return normalizedNumber; }
+    public void setNormalizedNumber(String normalizedNumber) { this.normalizedNumber = normalizedNumber; }
+    public String getPhotoUri() { return photoUri; }
+    public void setPhotoUri(String photoUri) { this.photoUri = photoUri; }
+    public boolean isFavorite() { return isFavorite; }
+    public void setFavorite(boolean favorite) { isFavorite = favorite; }
+    public boolean isSpam() { return isSpam; }
+    public void setSpam(boolean spam) { isSpam = spam; }
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         ContactModel that = (ContactModel) o;
-        return id == that.id &&
-                isFavorite == that.isFavorite &&
-                isSpam == that.isSpam &&
+        return id == that.id && isFavorite == that.isFavorite && isSpam == that.isSpam &&
                 java.util.Objects.equals(name, that.name) &&
                 java.util.Objects.equals(number, that.number) &&
-                java.util.Objects.equals(photoUri, that.photoUri) &&
-                java.util.Objects.equals(notes, that.notes);
+                java.util.Objects.equals(photoUri, that.photoUri);
     }
 
     @Override

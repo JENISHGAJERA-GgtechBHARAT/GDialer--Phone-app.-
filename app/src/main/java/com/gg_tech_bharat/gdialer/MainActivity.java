@@ -30,6 +30,10 @@ public class MainActivity extends AppCompatActivity {
 
         AppDatabase.databaseWriteExecutor.execute(() -> {
             database = AppDatabase.getDatabase(this);
+            
+            // Clean up duplicate contacts on startup
+            database.contactDao().deleteDuplicates();
+
             runOnUiThread(() -> {
                 database.contactDao().getAllContacts().observe(this, contacts -> {
                     if (contacts != null) {
