@@ -1,6 +1,7 @@
 package com.gg_tech_bharat.gdialer;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -38,6 +39,8 @@ public class RecentsFragment extends Fragment {
     private TextView tvSelectedCount, tvSelectAllText;
     private OnBackPressedCallback onBackPressedCallback;
     private EditText etSearch;
+
+    private List<RecentModel> lastEmittedRecents = new ArrayList<>();
 
     private static final java.util.concurrent.ExecutorService syncExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r);
@@ -116,24 +119,42 @@ public class RecentsFragment extends Fragment {
             @Override public void afterTextChanged(Editable s) {}
         });
 
-        loadCallHistory();
+        // 1. Observe Recents table
+        database.recentDao().getAllRecents().observe(getViewLifecycleOwner(), recents -> {
+            if (recents != null) {
+                lastEmittedRecents = recents;
+                processAndDisplayRecents();
+            }
+        });
 
-        // REFRESH RECENT NAMES WHEN CONTACTS CHANGE
+        // 2. Observe Contacts table (to refresh names when deleted/edited)
         database.contactDao().getAllContacts().observe(getViewLifecycleOwner(), contacts -> {
-            if (adapter != null) adapter.notifyDataSetChanged();
+            if (contacts != null) {
+                // Update cache immediately to ensure next processing is accurate
+                ContactCache.setCachedContacts(contacts);
+                processAndDisplayRecents();
+            }
         });
 
         new androidx.recyclerview.widget.ItemTouchHelper(new SwipeToCallMessageCallback(requireContext(), new SwipeToCallMessageCallback.SwipeActionListener() {
             @Override public void onCallAction(int position) {
-                if (adapter.isSelectionMode()) { adapter.notifyItemChanged(position); return; }
+                Context context = getContext();
+                if (context == null || adapter == null || adapter.isSelectionMode()) {
+                    if (adapter != null) adapter.notifyItemChanged(position);
+                    return;
+                }
                 RecentModel r = adapter.getRecentAt(position);
-                if (r != null) Utils.makePhoneCall(requireContext(), r.getNumber());
+                if (r != null) Utils.makePhoneCall(context, r.getNumber());
                 adapter.notifyItemChanged(position);
             }
             @Override public void onMessageAction(int position) {
-                if (adapter.isSelectionMode()) { adapter.notifyItemChanged(position); return; }
+                Context context = getContext();
+                if (context == null || adapter == null || adapter.isSelectionMode()) {
+                    if (adapter != null) adapter.notifyItemChanged(position);
+                    return;
+                }
                 RecentModel r = adapter.getRecentAt(position);
-                if (r != null) Utils.sendSMS(requireContext(), r.getNumber(), "");
+                if (r != null) Utils.sendSMS(context, r.getNumber(), "");
                 adapter.notifyItemChanged(position);
             }
         })).attachToRecyclerView(rvRecents);
@@ -141,22 +162,44 @@ public class RecentsFragment extends Fragment {
         return view;
     }
 
+    private void processAndDisplayRecents() {
+        if (!etSearch.getText().toString().isEmpty()) return;
+        final List<RecentModel> dataToProcess = new ArrayList<>(lastEmittedRecents);
+        
+        AppDatabase.databaseWriteExecutor.execute(() -> {
+            List<RecentModel> processed = groupRecents(dataToProcess);
+            
+            // PRE-RESOLVE NAMES FROM CACHE FOR SPEED
+            for (RecentModel r : processed) {
+                if ("Conference".equals(r.getNumber())) {
+                    r.setName("Conference call");
+                } else {
+                    ContactModel contact = ContactCache.getContactByNumber(r.getNumber());
+                    if (contact != null) r.setName(contact.getName());
+                    else r.setName(null); // Force number display (means contact was deleted)
+                }
+            }
+
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    if (adapter != null) adapter.setRecents(processed);
+                });
+            }
+        });
+    }
+
     @Override
     public void onResume() {
         super.onResume();
         if (adapter != null) {
-            // Force a full refresh of names and photos to catch edits/deletions
-            AppDatabase.databaseWriteExecutor.execute(() -> {
-                if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> adapter.notifyDataSetChanged());
-                }
-            });
+            // High-reliability sync on return
+            syncDeviceCallLogs();
         }
     }
 
     private void searchContactsAndRecents(String query) {
         if (query.isEmpty()) {
-            loadCallHistory();
+            processAndDisplayRecents();
             return;
         }
         
@@ -181,14 +224,6 @@ public class RecentsFragment extends Fragment {
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), onBackPressedCallback);
     }
 
-    private void loadCallHistory() {
-        database.recentDao().getAllRecents().observe(getViewLifecycleOwner(), recents -> {
-            if (recents != null && etSearch.getText().toString().isEmpty()) {
-                adapter.setRecents(groupRecents(recents));
-            }
-        });
-    }
-
     private List<RecentModel> groupRecents(List<RecentModel> recents) {
         if (recents.isEmpty()) return recents;
         List<RecentModel> grouped = new ArrayList<>();
@@ -204,16 +239,12 @@ public class RecentsFragment extends Fragment {
             } else {
                 // Group if same number and within 30 minutes of the latest call in the group
                 boolean sameNumber = r.getNumber().equals(currentGroup.getNumber());
-                // We use Math.abs because timestamps are descending, so currentGroup.ts > r.ts
                 boolean within30Min = (groupStartTime - r.getTimestamp()) <= (30 * 60 * 1000L);
                 
                 if (sameNumber && within30Min) {
                     count++;
                 } else {
-                    if (count > 1) {
-                        String baseName = (currentGroup.getName() != null && !currentGroup.getName().isEmpty()) ? currentGroup.getName() : currentGroup.getNumber();
-                        currentGroup.setName(baseName + " (" + count + ")");
-                    }
+                    currentGroup.setCallCount(count);
                     grouped.add(currentGroup);
                     currentGroup = copyRecent(r);
                     count = 1;
@@ -222,10 +253,7 @@ public class RecentsFragment extends Fragment {
             }
         }
         if (currentGroup != null) {
-            if (count > 1) {
-                String baseName = (currentGroup.getName() != null && !currentGroup.getName().isEmpty()) ? currentGroup.getName() : currentGroup.getNumber();
-                currentGroup.setName(baseName + " (" + count + ")");
-            }
+            currentGroup.setCallCount(count);
             grouped.add(currentGroup);
         }
         return grouped;
@@ -237,8 +265,15 @@ public class RecentsFragment extends Fragment {
         return copy;
     }
 
+    private static long lastSyncTime = 0;
+
     private void syncDeviceCallLogs() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) return;
+        
+        long now = System.currentTimeMillis();
+        if (now - lastSyncTime < 10000) return;
+        lastSyncTime = now;
+
         syncExecutor.execute(() -> {
             try (Cursor cursor = requireContext().getContentResolver().query(CallLog.Calls.CONTENT_URI, 
                     new String[]{CallLog.Calls.NUMBER, CallLog.Calls.CACHED_NAME, CallLog.Calls.DATE, CallLog.Calls.DURATION, CallLog.Calls.TYPE}, 
@@ -273,14 +308,8 @@ public class RecentsFragment extends Fragment {
                     
                     if (!toInsert.isEmpty()) dao.insertAll(toInsert);
 
-                    // DELETE SYNC: Remove local items that were deleted from system logs
-                    // We only do this for the last 500 to avoid accidental mass deletion of older logs
                     for (RecentModel local : localRecents) {
-                        // Only consider calls synced from system (duration > 0 or has a valid timestamp within range)
                         if (local.getTimestamp() > 0 && !systemTimestamps.contains(local.getTimestamp())) {
-                            // Check if this log is "recent" enough to be in the 500 we queried
-                            // If it's not in the system's latest 500 but it is in our local DB, 
-                            // and the system still has older calls than this one, then it was definitely deleted.
                             dao.delete(local);
                         }
                     }

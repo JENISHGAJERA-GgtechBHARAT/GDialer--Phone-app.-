@@ -2,9 +2,14 @@ package com.gg_tech_bharat.gdialer;
 
 import android.content.ContentProviderOperation;
 import android.content.Intent;
+import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
@@ -15,7 +20,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
+import androidx.exifinterface.media.ExifInterface;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -97,8 +104,42 @@ public class EditContactActivity extends AppCompatActivity {
                 sourceImageUri = data.getData();
                 startCrop(sourceImageUri);
             } else if (requestCode == CROP_IMAGE_REQUEST) {
-                Utils.loadContactPhoto(this, photoUriString, ivAvatar);
+                processAndRotateImage(Uri.fromFile(new File(photoUriString)));
             }
+        }
+    }
+
+    private void processAndRotateImage(Uri uri) {
+        try {
+            Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), uri);
+            if (bitmap == null) return;
+
+            int rotation = 0;
+            try (InputStream is = getContentResolver().openInputStream(uri)) {
+                if (is != null) {
+                    ExifInterface exif = new ExifInterface(is);
+                    int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+                    if (orientation == ExifInterface.ORIENTATION_ROTATE_90) rotation = 90;
+                    else if (orientation == ExifInterface.ORIENTATION_ROTATE_180) rotation = 180;
+                    else if (orientation == ExifInterface.ORIENTATION_ROTATE_270) rotation = 270;
+                }
+            } catch (Exception ignored) {}
+
+            if (rotation != 0) {
+                Matrix matrix = new Matrix();
+                matrix.postRotate(rotation);
+                bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+            }
+
+            File file = new File(photoUriString);
+            try (FileOutputStream out = new FileOutputStream(file)) {
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+            }
+            
+            runOnUiThread(() -> Utils.loadContactPhoto(this, photoUriString, ivAvatar));
+        } catch (Exception e) {
+            Log.e("EditContactActivity", "Image processing failed", e);
+            Utils.loadContactPhoto(this, photoUriString, ivAvatar);
         }
     }
 
@@ -149,7 +190,7 @@ public class EditContactActivity extends AppCompatActivity {
             outputStream.close();
             inputStream.close();
             photoUriString = file.getAbsolutePath();
-            Utils.loadContactPhoto(this, photoUriString, ivAvatar);
+            processAndRotateImage(Uri.fromFile(file));
         } catch (Exception e) {
             Toast.makeText(this, "Image load failed", Toast.LENGTH_SHORT).show();
         }
@@ -192,53 +233,92 @@ public class EditContactActivity extends AppCompatActivity {
 
     private void performSaveSync(String name, String phone, String notes) {
         AppDatabase.databaseWriteExecutor.execute(() -> {
-            // Aggressive Sync to Google Account
+            // AGGRESSIVE HIGH-FIDELITY SYNC TO GOOGLE/SYSTEM CONTACTS
             ArrayList<ContentProviderOperation> ops = new ArrayList<>();
-            android.accounts.Account[] googleAccounts = android.accounts.AccountManager.get(this).getAccountsByType("com.google");
-            android.accounts.Account targetAccount = (googleAccounts.length > 0) ? googleAccounts[0] : null;
-            
-            String accountName = (targetAccount != null) ? targetAccount.name : null;
-            String accountType = (targetAccount != null) ? targetAccount.type : null;
+            long rawContactId = -1;
 
-            int rawIndex = ops.size();
-            ops.add(ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
-                    .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, accountType)
-                    .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, accountName)
-                    .withValue(ContactsContract.RawContacts.DIRTY, 1) // Mark as changed for sync
-                    .build());
-
-            ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, rawIndex)
-                    .withValue(android.provider.ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
-                    .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, name).build());
-
-            // Primary Phone
-            ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, rawIndex)
-                    .withValue(android.provider.ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
-                    .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phone)
-                    .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE).build());
-
-            // Sync Photo
-            if (photoUriString != null && !photoUriString.isEmpty()) {
-                try {
-                    android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(photoUriString);
-                    if (bitmap != null) {
-                        java.io.ByteArrayOutputStream stream = new java.io.ByteArrayOutputStream();
-                        bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, stream);
-                        byte[] photoBytes = stream.toByteArray();
-                        ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, rawIndex)
-                                .withValue(android.provider.ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
-                                .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, photoBytes).build());
+            // 1. Try to find existing system contact by number
+            try {
+                Uri lookupUri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(phone));
+                String[] projection = new String[]{ContactsContract.PhoneLookup._ID, ContactsContract.PhoneLookup.LOOKUP_KEY};
+                try (Cursor cursor = getContentResolver().query(lookupUri, projection, null, null, null)) {
+                    if (cursor != null && cursor.moveToFirst()) {
+                        long systemContactId = cursor.getLong(0);
+                        Uri rawUri = ContactsContract.RawContacts.CONTENT_URI;
+                        String[] rawProj = new String[]{ContactsContract.RawContacts._ID};
+                        try (Cursor rawCursor = getContentResolver().query(rawUri, rawProj, ContactsContract.RawContacts.CONTACT_ID + " = ?", new String[]{String.valueOf(systemContactId)}, null)) {
+                            if (rawCursor != null && rawCursor.moveToFirst()) {
+                                rawContactId = rawCursor.getLong(0);
+                            }
+                        }
                     }
-                } catch (Exception e) { Log.e("EditContactActivity", "Photo sync failed", e); }
+                }
+            } catch (Exception e) { Log.e("EditContactActivity", "System lookup failed", e); }
+
+            if (rawContactId != -1) {
+                // UPDATE EXISTING CONTACT
+                ops.add(ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
+                        .withSelection(ContactsContract.Data.RAW_CONTACT_ID + " = ? AND " + ContactsContract.Data.MIMETYPE + " = ?", 
+                                new String[]{String.valueOf(rawContactId), ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE})
+                        .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, name)
+                        .build());
+                
+                if (photoUriString != null && !photoUriString.isEmpty()) {
+                    try {
+                        Bitmap bitmap = BitmapFactory.decodeFile(photoUriString);
+                        if (bitmap != null) {
+                            ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream);
+                            ops.add(ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
+                                    .withSelection(ContactsContract.Data.RAW_CONTACT_ID + " = ? AND " + ContactsContract.Data.MIMETYPE + " = ?", 
+                                            new String[]{String.valueOf(rawContactId), ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE})
+                                    .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, stream.toByteArray())
+                                    .build());
+                        }
+                    } catch (Exception ignored) {}
+                }
+            } else {
+                // CREATE NEW CONTACT IN GOOGLE ACCOUNT
+                android.accounts.Account[] googleAccounts = android.accounts.AccountManager.get(this).getAccountsByType("com.google");
+                android.accounts.Account targetAccount = (googleAccounts.length > 0) ? googleAccounts[0] : null;
+                String accountName = (targetAccount != null) ? targetAccount.name : null;
+                String accountType = (targetAccount != null) ? targetAccount.type : null;
+
+                int rawIndex = ops.size();
+                ops.add(ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
+                        .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, accountType)
+                        .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, accountName)
+                        .withValue(ContactsContract.RawContacts.DIRTY, 1).build());
+
+                ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                        .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, rawIndex)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, name).build());
+
+                ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                        .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, rawIndex)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phone)
+                        .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE).build());
+
+                if (photoUriString != null && !photoUriString.isEmpty()) {
+                    try {
+                        Bitmap bitmap = BitmapFactory.decodeFile(photoUriString);
+                        if (bitmap != null) {
+                            ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream);
+                            ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, rawIndex)
+                                    .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
+                                    .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, stream.toByteArray()).build());
+                        }
+                    } catch (Exception ignored) {}
+                }
             }
 
             try {
                 getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
-                
-                // AGGRESSIVE CLOUD SYNC: Request sync for all Google accounts
+                // Force system sync
                 android.accounts.Account[] accounts = android.accounts.AccountManager.get(this).getAccountsByType("com.google");
                 for (android.accounts.Account account : accounts) {
                     android.os.Bundle extras = new android.os.Bundle();
@@ -248,7 +328,7 @@ public class EditContactActivity extends AppCompatActivity {
                 }
             } catch (Exception e) { Log.e("EditContactActivity", "Sync failed", e); }
 
-            // Local DB save
+            // Update local DB
             if (currentContact == null) {
                 database.contactDao().insert(new ContactModel(name, phone, photoUriString, false, false, notes));
             } else {

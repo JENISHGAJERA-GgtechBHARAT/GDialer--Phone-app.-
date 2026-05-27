@@ -69,13 +69,17 @@ public class KeypadFragment extends Fragment implements View.OnClickListener {
         // ADD SWIPE SUPPORT TO KEYPAD SUGGESTIONS
         new androidx.recyclerview.widget.ItemTouchHelper(new SwipeToCallMessageCallback(requireContext(), new SwipeToCallMessageCallback.SwipeActionListener() {
             @Override public void onCallAction(int p) {
+                Context context = getContext();
+                if (context == null || adapter == null) return;
                 ContactModel c = adapter.getContactAt(p);
-                if (c != null) Utils.makePhoneCall(requireContext(), c.getNumber());
+                if (c != null) Utils.makePhoneCall(context, c.getNumber());
                 adapter.notifyItemChanged(p);
             }
             @Override public void onMessageAction(int p) {
+                Context context = getContext();
+                if (context == null || adapter == null) return;
                 ContactModel c = adapter.getContactAt(p);
-                if (c != null) Utils.sendSMS(requireContext(), c.getNumber(), "");
+                if (c != null) Utils.sendSMS(context, c.getNumber(), "");
                 adapter.notifyItemChanged(p);
             }
         })).attachToRecyclerView(rvSuggestions);

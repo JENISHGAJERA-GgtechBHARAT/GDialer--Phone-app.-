@@ -265,23 +265,42 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
 
     private void mergeAndAnswer() {
         stopWaitingTone();
-        // Answer first
+        // 1. Answer the incoming call
         answerCall(VideoProfile.STATE_AUDIO_ONLY);
         
-        // Post-answer merge logic: wait for new call to become active then merge
-        waitingToneHandler.postDelayed(() -> {
-            List<Call> calls = CallManager.getCalls();
-            Call active = null;
-            Call holding = null;
-            for (Call c : calls) {
-                if (c.getState() == Call.STATE_ACTIVE) active = c;
-                else if (c.getState() == Call.STATE_HOLDING) holding = c;
+        // 2. Monitor call states to merge once ready
+        CallManager.registerListener(new CallManager.CallStateListener() {
+            private boolean isMerged = false;
+            @Override public void onStateChanged(int state) {
+                if (state == Call.STATE_ACTIVE) tryMerge();
             }
-            if (active != null && holding != null) {
-                active.conference(holding);
-                Toast.makeText(this, "Merging calls...", Toast.LENGTH_SHORT).show();
+            @Override public void onCallListChanged() {
+                tryMerge();
             }
-        }, 1500);
+
+            private void tryMerge() {
+                if (isMerged) return;
+                List<Call> calls = CallManager.getCalls();
+                Call active = null;
+                Call holding = null;
+                for (Call c : calls) {
+                    if (c.getState() == Call.STATE_ACTIVE) active = c;
+                    else if (c.getState() == Call.STATE_HOLDING) holding = c;
+                }
+                
+                if (active != null && holding != null) {
+                    isMerged = true;
+                    try {
+                        active.conference(holding);
+                        Toast.makeText(IncomingCallActivity.this, "Merging calls...", Toast.LENGTH_SHORT).show();
+                    } catch (Exception e) {
+                        Log.e("IncomingCallActivity", "Merge failed", e);
+                        Toast.makeText(IncomingCallActivity.this, "Error on merge: try manual merge", Toast.LENGTH_LONG).show();
+                    }
+                    CallManager.unregisterListener(this);
+                }
+            }
+        });
     }
 
     @Override
@@ -466,14 +485,13 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
         if (ringingCall != null) {
             try {
                 ringingCall.answer(videoState);
-                finish();
-                overridePendingTransition(R.anim.premium_fade_in, R.anim.premium_fade_out);
+                // Let InCallServiceImpl handle the launch of OngoingCallActivity via onStateChanged
+                finishWithTransition();
             } catch (Exception e) { finish(); }
         } else if (CallManager.sCurrentCall != null) {
             try {
                 CallManager.sCurrentCall.answer(videoState);
-                finish();
-                overridePendingTransition(R.anim.premium_fade_in, R.anim.premium_fade_out);
+                finishWithTransition();
             } catch (Exception e) { finish(); }
         } else { finish(); }
     }

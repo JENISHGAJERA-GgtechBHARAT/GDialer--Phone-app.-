@@ -86,7 +86,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     private final BroadcastReceiver disconnectReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             if ("com.gg_tech_bharat.gdialer.CALL_DISCONNECTED".equals(intent.getAction())) {
-                try { Utils.vibrateDevice(getApplicationContext(), 100); } catch (Exception ignored) {}
+                // Vibration handled by InCallServiceImpl to avoid duplicates
                 finishAndRemoveTask();
                 overridePendingTransition(0, R.anim.premium_fade_out);
             } else if ("com.gg_tech_bharat.gdialer.VIDEO_STATE_CHANGED".equals(intent.getAction())) {
@@ -378,10 +378,20 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     }
 
     private void updateTimerUI() {
+        if (CallManager.sCurrentCall != null) {
+            int state = CallManager.sCurrentCall.getState();
+            if (state == Call.STATE_DIALING || state == Call.STATE_CONNECTING) {
+                if (tvCallTimer != null) tvCallTimer.setText("Calling...");
+                return;
+            }
+        }
+        
         if (callStartTime > 0) {
             long durationMs = SystemClock.elapsedRealtime() - callStartTime;
             long seconds = durationMs / 1000;
             if (tvCallTimer != null) tvCallTimer.setText(String.format(java.util.Locale.getDefault(), "%02d:%02d", seconds / 60, seconds % 60));
+        } else {
+            if (tvCallTimer != null) tvCallTimer.setText("00:00");
         }
     }
 
@@ -451,12 +461,26 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     }
 
     private void mergeCalls() {
-        List<Call> calls = CallManager.getCalls();
-        if (calls.size() < 2) return;
-        Call active = null;
-        for (Call c : calls) { if (c.getState() == Call.STATE_ACTIVE) { active = c; break; } }
-        if (active != null) { for (Call c : calls) { if (c != active) active.conference(c); } Toast.makeText(this, "Merging calls...", Toast.LENGTH_SHORT).show(); }
-        else { calls.get(0).conference(calls.get(1)); Toast.makeText(this, "Merging calls...", Toast.LENGTH_SHORT).show(); }
+        try {
+            List<Call> calls = CallManager.getCalls();
+            if (calls.size() < 2) return;
+            Call active = null;
+            for (Call c : calls) { if (c.getState() == Call.STATE_ACTIVE) { active = c; break; } }
+            if (active != null) {
+                for (Call c : calls) {
+                    if (c != active && (c.getState() == Call.STATE_ACTIVE || c.getState() == Call.STATE_HOLDING)) {
+                        active.conference(c);
+                    }
+                }
+                Toast.makeText(this, "Merging calls...", Toast.LENGTH_SHORT).show();
+            } else {
+                calls.get(0).conference(calls.get(1));
+                Toast.makeText(this, "Merging calls...", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Log.e("OngoingCallActivity", "Merge error", e);
+            Toast.makeText(this, "Error on merge: try again", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void showMoreMenu(View v) {
@@ -582,7 +606,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
         sx.setDuration(2500); sy.setDuration(2500); a.setDuration(2500); sx.setStartDelay(delay); sy.setStartDelay(delay); a.setStartDelay(delay); sx.start(); sy.start(); a.start();
     }
 
-    private void endCallSignal() { try { Utils.vibrateDevice(getApplicationContext(), 100); } catch (Exception ignored) {} if (CallManager.sCurrentCall != null) { try { CallManager.sCurrentCall.disconnect(); } catch (Exception ignored) {} } finishAndRemoveTask(); }
+    private void endCallSignal() { if (CallManager.sCurrentCall != null) { try { CallManager.sCurrentCall.disconnect(); } catch (Exception ignored) {} } finishAndRemoveTask(); }
     @Override public void onSensorChanged(SensorEvent event) { if (proximitySensor == null) return; if (event.values[0] < proximitySensor.getMaximumRange()) { if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire(10 * 60 * 1000L); } else { if (wakeLock != null && wakeLock.isHeld()) wakeLock.release(); } }
     @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
     @Override protected void onResume() { super.onResume(); if (proximitySensor != null) sensorManager.registerListener(this, proximitySensor, SensorManager.SENSOR_DELAY_NORMAL); }

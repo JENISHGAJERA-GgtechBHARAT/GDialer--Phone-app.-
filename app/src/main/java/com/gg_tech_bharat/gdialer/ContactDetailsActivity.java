@@ -2,6 +2,7 @@ package com.gg_tech_bharat.gdialer;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -187,9 +188,36 @@ public class ContactDetailsActivity extends AppCompatActivity {
                 .setMessage("Are you sure you want to delete " + currentContact.getName() + "?")
                 .setPositiveButton("Delete", (dialog, which) -> {
                     AppDatabase.databaseWriteExecutor.execute(() -> {
+                        // 1. DELETE FROM GOOGLE / SYSTEM CONTACTS
+                        try {
+                            android.net.Uri contactUri = android.net.Uri.withAppendedPath(android.provider.ContactsContract.PhoneLookup.CONTENT_FILTER_URI, android.net.Uri.encode(phoneNumber));
+                            String[] projection = new String[]{android.provider.ContactsContract.PhoneLookup._ID, android.provider.ContactsContract.PhoneLookup.LOOKUP_KEY};
+                            try (android.database.Cursor cursor = getContentResolver().query(contactUri, projection, null, null, null)) {
+                                if (cursor != null) {
+                                    while (cursor.moveToNext()) {
+                                        String lookupKey = cursor.getString(1);
+                                        android.net.Uri uri = android.net.Uri.withAppendedPath(android.provider.ContactsContract.Contacts.CONTENT_LOOKUP_URI, lookupKey);
+                                        getContentResolver().delete(uri, null, null);
+                                        Log.d("ContactDetails", "System contact deleted: " + lookupKey);
+                                    }
+                                }
+                            }
+                        } catch (Exception e) { Log.e("ContactDetails", "System deletion failed", e); }
+
+                        // 2. DELETE FROM LOCAL DATABASE
                         database.contactDao().delete(currentContact);
+
+                        // 3. FORCE GOOGLE SYNC TRIGGER
+                        android.accounts.Account[] accounts = android.accounts.AccountManager.get(this).getAccountsByType("com.google");
+                        for (android.accounts.Account account : accounts) {
+                            android.os.Bundle extras = new android.os.Bundle();
+                            extras.putBoolean(android.content.ContentResolver.SYNC_EXTRAS_MANUAL, true);
+                            extras.putBoolean(android.content.ContentResolver.SYNC_EXTRAS_EXPEDITED, true);
+                            android.content.ContentResolver.requestSync(account, android.provider.ContactsContract.AUTHORITY, extras);
+                        }
+
                         runOnUiThread(() -> {
-                            Toast.makeText(this, "Contact deleted", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, "Contact deleted and synced with Google", Toast.LENGTH_SHORT).show();
                             finish();
                         });
                     });

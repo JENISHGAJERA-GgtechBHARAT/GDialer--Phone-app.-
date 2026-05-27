@@ -1,6 +1,7 @@
 package com.gg_tech_bharat.gdialer;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -133,13 +134,21 @@ public class ContactsFragment extends Fragment {
 
         new androidx.recyclerview.widget.ItemTouchHelper(new SwipeToCallMessageCallback(requireContext(), new SwipeToCallMessageCallback.SwipeActionListener() {
             @Override public void onCallAction(int p) {
-                if (contactsAdapter.isSelectionMode()) { contactsAdapter.notifyItemChanged(p); return; }
-                Utils.makePhoneCall(requireContext(), contactsAdapter.getContactAt(p).getNumber());
+                Context context = getContext();
+                if (context == null || contactsAdapter == null || contactsAdapter.isSelectionMode()) {
+                    if (contactsAdapter != null) contactsAdapter.notifyItemChanged(p);
+                    return;
+                }
+                Utils.makePhoneCall(context, contactsAdapter.getContactAt(p).getNumber());
                 contactsAdapter.notifyItemChanged(p);
             }
             @Override public void onMessageAction(int p) {
-                if (contactsAdapter.isSelectionMode()) { contactsAdapter.notifyItemChanged(p); return; }
-                Utils.sendSMS(requireContext(), contactsAdapter.getContactAt(p).getNumber(), "");
+                Context context = getContext();
+                if (context == null || contactsAdapter == null || contactsAdapter.isSelectionMode()) {
+                    if (contactsAdapter != null) contactsAdapter.notifyItemChanged(p);
+                    return;
+                }
+                Utils.sendSMS(context, contactsAdapter.getContactAt(p).getNumber(), "");
                 contactsAdapter.notifyItemChanged(p);
             }
         })).attachToRecyclerView(rvContacts);

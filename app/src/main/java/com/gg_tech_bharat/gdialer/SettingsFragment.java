@@ -78,11 +78,14 @@ public class SettingsFragment extends Fragment {
         View accountSync = view.findViewById(R.id.layoutAccountSync);
         if (accountSync != null) {
             accountSync.setOnClickListener(v -> {
-                if (!isAdded()) return;
+                Context context = getContext();
+                if (context == null) return;
                 Utils.triggerHaptic(v);
-                Toast.makeText(getContext(), "Syncing contacts...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "Syncing contacts...", Toast.LENGTH_SHORT).show();
                 new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                    if (isAdded()) Toast.makeText(getContext(), "Sync complete", Toast.LENGTH_SHORT).show();
+                    if (isAdded() && getContext() != null) {
+                        Toast.makeText(getContext(), "Sync complete", Toast.LENGTH_SHORT).show();
+                    }
                 }, 1500);
             });
         }

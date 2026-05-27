@@ -24,7 +24,7 @@ public interface RecentDao {
     @Insert
     void insertAll(List<RecentModel> recents);
 
-    @Query("SELECT * FROM recents ORDER BY timestamp DESC")
+    @Query("SELECT * FROM recents ORDER BY timestamp DESC LIMIT 500")
     LiveData<List<RecentModel>> getAllRecents();
 
     @Query("SELECT * FROM recents ORDER BY timestamp DESC LIMIT 200")

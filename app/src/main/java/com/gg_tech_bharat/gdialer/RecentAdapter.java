@@ -139,64 +139,22 @@ public class RecentAdapter extends RecyclerView.Adapter<RecentAdapter.RecentView
         String number = recent.getNumber();
         String currentName = recent.getName();
         String initialDisplay = (currentName != null && !currentName.isEmpty()) ? currentName : number;
+        
+        // Samsung Style: Show count next to name
+        if (recent.getCallCount() > 1) {
+            initialDisplay += " (" + recent.getCallCount() + ")";
+        }
         holder.tvName.setText(initialDisplay);
         
-        // Initial fallback
-        holder.ivAvatar.setImageResource(R.drawable.ic_contacts);
-
-        // Dynamic name & photo refresh: Handles newly saved contacts, updated names, or deleted contacts
-        AppDatabase.databaseWriteExecutor.execute(() -> {
-            if ("Conference".equals(number)) {
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                    holder.tvName.setText("Conference call");
-                    holder.ivAvatar.setImageResource(R.drawable.ic_contacts);
-                });
-                return;
-            }
-
-            // High-reliability lookup: Use normalized number and last 10 digits fallback
-            ContactDao dao = AppDatabase.getDatabase(context).contactDao();
-            String normalizedRecent = Utils.normalizePhoneNumber(number);
-            ContactModel contact = dao.getContactByNormalizedNumber(normalizedRecent);
-            
-            if (contact == null && normalizedRecent.length() >= 10) {
-                contact = dao.getContactByLastDigits(normalizedRecent.substring(normalizedRecent.length() - 10));
-            }
-
-            String foundName = null;
-            String photoUri = null;
-
+        // High-performance photo load
+        String photoUri = null;
+        if (!"Conference".equals(number)) {
+            ContactModel contact = ContactCache.getContactByNumber(number);
             if (contact != null) {
-                foundName = contact.getName();
                 photoUri = contact.getPhotoUri();
-            } else {
-                // Fallback to System Contacts if not in app DB
-                foundName = Utils.queryContactName(context, number);
-                if (foundName != null) {
-                    photoUri = querySystemContactPhotoUri(number);
-                }
             }
-
-            final String finalPhotoUri = photoUri;
-            final String finalName = foundName;
-
-            // Update UI with latest information
-            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                // If name is null (contact deleted), revert to phone number
-                String nameToDisplay = (finalName != null && !finalName.isEmpty()) ? finalName : number;
-                
-                // Update local object and UI if changed
-                if (holder.getBindingAdapterPosition() == RecyclerView.NO_POSITION) return;
-
-                if (!nameToDisplay.equals(holder.tvName.getText().toString())) {
-                    recent.setName(finalName);
-                    holder.tvName.setText(nameToDisplay);
-                }
-                
-                // Always load/refresh photo to ensure it's "clear" and updated
-                Utils.loadContactPhoto(context, finalPhotoUri, holder.ivAvatar);
-            });
-        });
+        }
+        Utils.loadContactPhoto(context, photoUri, holder.ivAvatar);
 
         holder.tvDetails.setText(String.format("%s • %s", Utils.formatTimestamp(recent.getTimestamp()), Utils.formatDuration(recent.getDuration())));
 

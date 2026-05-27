@@ -16,6 +16,9 @@ public class RecentModel {
     private boolean isRecorded;
     private String recordingPath;
 
+    @androidx.room.Ignore
+    private int callCount = 1;
+
     public RecentModel(String number, String name, long timestamp, long duration, int callType, boolean isRecorded, String recordingPath) {
         this.number = number;
         this.name = name;
@@ -89,6 +92,14 @@ public class RecentModel {
 
     public void setRecordingPath(String recordingPath) {
         this.recordingPath = recordingPath;
+    }
+
+    public int getCallCount() {
+        return callCount;
+    }
+
+    public void setCallCount(int callCount) {
+        this.callCount = callCount;
     }
 
     @Override

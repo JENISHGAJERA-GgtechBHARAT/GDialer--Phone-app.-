@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.telecom.TelecomManager;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -31,8 +32,12 @@ public class MainActivity extends AppCompatActivity {
         AppDatabase.databaseWriteExecutor.execute(() -> {
             database = AppDatabase.getDatabase(this);
             
-            // Clean up duplicate contacts on startup
-            database.contactDao().deleteDuplicates();
+            // Background cleanup after UI starts
+            new Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                AppDatabase.databaseWriteExecutor.execute(() -> {
+                    if (database != null) database.contactDao().deleteDuplicates();
+                });
+            }, 3000);
 
             runOnUiThread(() -> {
                 database.contactDao().getAllContacts().observe(this, contacts -> {
