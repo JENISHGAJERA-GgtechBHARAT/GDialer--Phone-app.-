@@ -1,59 +1,43 @@
 package com.gg_tech_bharat.gdialer;
 
 import android.content.Context;
-import android.content.Intent;
-import android.content.res.AssetFileDescriptor;
+import android.content.SharedPreferences;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
-import android.media.ToneGenerator;
-import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.MediaStore;
-import android.speech.RecognitionListener;
-import android.speech.RecognizerIntent;
-import android.speech.SpeechRecognizer;
-import android.speech.tts.TextToSpeech;
 import android.telecom.Call;
 import android.telecom.VideoProfile;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Locale;
 
 public class VoicemailActivity extends AppCompatActivity {
 
     private static final String TAG = "VoicemailActivity";
     
-    private TextView tvNumber, tvStatus, tvTranscription;
-    private View btnEndVoicemail, btnPickup, viewWaveform;
-    private Button btnReply1, btnReply2, btnReply3;
+    private TextView tvNumber, tvStatus;
+    private View btnEnd, viewWaveform;
     
     private Call activeCall;
-    private MediaRecorder mediaRecorder;
+    private MediaRecorder recorder;
+    private MediaPlayer player;
     private AudioManager audioManager;
-    private TextToSpeech tts;
-    private SpeechRecognizer speechRecognizer;
     private String phoneNumber;
-    private android.os.ParcelFileDescriptor pfd;
-    private Uri currentAudioUri;
-    
     private boolean isRecording = false;
-    private StringBuilder fullTranscript = new StringBuilder();
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    private String currentFilePath;
+    private long startTime;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -69,194 +53,149 @@ public class VoicemailActivity extends AppCompatActivity {
         CallManager.isVoicemailScreening = true;
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         
-        initViews();
-        setupInteraction();
-
-        activeCall = CallManager.sCurrentCall;
-        if (activeCall != null) {
-            startTranscriptionEngine();
-        } else {
-            finish();
-        }
-    }
-
-    private void initViews() {
         tvNumber = findViewById(R.id.tvVoicemailNumber);
         tvStatus = findViewById(R.id.tvVoicemailStatus);
-        tvTranscription = findViewById(R.id.tvLiveTranscription);
-        btnEndVoicemail = findViewById(R.id.btnEndVoicemail);
-        btnPickup = findViewById(R.id.btnPickupCall);
+        btnEnd = findViewById(R.id.btnEndVoicemail);
         viewWaveform = findViewById(R.id.viewWaveformIndicator);
-        btnReply1 = findViewById(R.id.btnReply1);
-        btnReply2 = findViewById(R.id.btnReply2);
-        btnReply3 = findViewById(R.id.btnReply3);
         
+        // Disable pickup button for this local implementation
+        View btnPickup = findViewById(R.id.btnPickupCall);
+        if (btnPickup != null) btnPickup.setVisibility(View.GONE);
+
         phoneNumber = getIntent().getStringExtra("EXTRA_NUMBER");
         if (phoneNumber == null) phoneNumber = "Unknown";
         tvNumber.setText(phoneNumber);
+
+        activeCall = CallManager.sCurrentCall;
+        if (activeCall != null) {
+            startVoicemailProcess();
+        } else {
+            finish();
+        }
+
+        btnEnd.setOnClickListener(v -> finishVoicemail());
     }
 
-    private void setupInteraction() {
-        btnEndVoicemail.setOnClickListener(v -> terminateVoicemail());
-        btnPickup.setOnClickListener(v -> pickupCall());
-        
-        View.OnClickListener replyListener = v -> {
-            String msg = ((Button)v).getText().toString();
-            sendQuickReplyToCaller(msg);
-        };
-        btnReply1.setOnClickListener(replyListener);
-        btnReply2.setOnClickListener(replyListener);
-        btnReply3.setOnClickListener(replyListener);
-    }
-
-    private void startTranscriptionEngine() {
+    private void startVoicemailProcess() {
         if (activeCall.getState() == Call.STATE_RINGING) {
             activeCall.answer(VideoProfile.STATE_AUDIO_ONLY);
         }
         
         audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-        tvStatus.setText("Screening...");
-
-        tts = new TextToSpeech(this, status -> {
-            if (status == TextToSpeech.SUCCESS) {
-                tts.setLanguage(Locale.US);
-                speakGreeting();
+        audioManager.setSpeakerphoneOn(true);
+        
+        tvStatus.setText("Playing greeting...");
+        
+        SharedPreferences prefs = getSharedPreferences("voicemail_prefs", MODE_PRIVATE);
+        String greetingPath = prefs.getString("greeting_path", null);
+        
+        player = new MediaPlayer();
+        try {
+            if (greetingPath != null && new File(greetingPath).exists()) {
+                player.setDataSource(greetingPath);
+            } else {
+                // Fallback to a default beep or greeting if asset exists
+                // For now, we'll just wait a bit and start recording
+                startRecording();
+                return;
             }
-        });
-
-        initSpeechRecognizer();
-    }
-
-    private void speakGreeting() {
-        audioManager.setSpeakerphoneOn(true); // Loopback for greeting
-        String message = "Voice mail is on. Please tell your talk here, i will contact you later.";
-        
-        Bundle params = new Bundle();
-        params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_VOICE_CALL);
-        
-        tts.speak(message, TextToSpeech.QUEUE_FLUSH, params, "greeting");
-        
-        handler.postDelayed(() -> {
-            audioManager.setSpeakerphoneOn(false);
-            startHardwareRecording();
-            startListeningToCaller();
-        }, 6000);
-    }
-
-    private void sendQuickReplyToCaller(String message) {
-        if (tts != null) {
-            audioManager.setSpeakerphoneOn(true);
-            Bundle params = new Bundle();
-            params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_VOICE_CALL);
-            tts.speak(message, TextToSpeech.QUEUE_ADD, params, "reply");
             
-            // Return to privacy mode after reply
-            handler.postDelayed(() -> audioManager.setSpeakerphoneOn(false), 3000);
+            player.setAudioAttributes(new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build());
+            
+            player.prepare();
+            player.setOnCompletionListener(mp -> startRecording());
+            player.start();
+        } catch (IOException e) {
+            startRecording();
         }
     }
 
-    private void initSpeechRecognizer() {
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
-        speechRecognizer.setRecognitionListener(new RecognitionListener() {
-            @Override public void onResults(Bundle results) {
-                ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-                if (matches != null && !matches.isEmpty()) {
-                    String text = matches.get(0);
-                    fullTranscript.append(text).append(". ");
-                    tvTranscription.setText(fullTranscript.toString());
-                }
-                startListeningToCaller(); // Restart loop
-            }
-            @Override public void onPartialResults(Bundle partialResults) {
-                ArrayList<String> matches = partialResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-                if (matches != null && !matches.isEmpty()) {
-                    tvTranscription.setText(fullTranscript.toString() + matches.get(0));
-                }
-            }
-            @Override public void onError(int error) { startListeningToCaller(); }
-            @Override public void onReadyForSpeech(Bundle params) {}
-            @Override public void onBeginningOfSpeech() {}
-            @Override public void onRmsChanged(float rmsdB) {}
-            @Override public void onBufferReceived(byte[] buffer) {}
-            @Override public void onEndOfSpeech() {}
-            @Override public void onEvent(int eventType, Bundle params) {}
-        });
-    }
+    private void startRecording() {
+        if (player != null) {
+            player.release();
+            player = null;
+        }
 
-    private void startListeningToCaller() {
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
-        speechRecognizer.startListening(intent);
-    }
+        String fileName = "VM_" + phoneNumber + "_" + System.currentTimeMillis() + ".m4a";
+        File dir = new File(getFilesDir(), "voicemails");
+        if (!dir.exists()) dir.mkdirs();
+        File file = new File(dir, fileName);
+        currentFilePath = file.getAbsolutePath();
 
-    private void startHardwareRecording() {
-        if (isRecording) return;
-        
-        android.content.ContentValues values = new android.content.ContentValues();
-        values.put(MediaStore.Audio.Media.DISPLAY_NAME, "Voicemail_" + phoneNumber);
-        values.put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/Voicemails");
-        values.put(MediaStore.Audio.Media.MIME_TYPE, "audio/mpeg");
-        
-        currentAudioUri = getContentResolver().insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values);
-        if (currentAudioUri == null) return;
+        recorder = new MediaRecorder();
+        recorder.setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION);
+        recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        recorder.setOutputFile(currentFilePath);
 
         try {
-            pfd = getContentResolver().openFileDescriptor(currentAudioUri, "w");
-            mediaRecorder = new MediaRecorder();
-            mediaRecorder.setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION);
-            mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-            mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-            mediaRecorder.setOutputFile(pfd.getFileDescriptor());
-            mediaRecorder.prepare();
-            mediaRecorder.start();
+            recorder.prepare();
+            recorder.start();
             isRecording = true;
+            startTime = System.currentTimeMillis();
+            tvStatus.setText("Recording message...");
+            updateWaveform();
         } catch (IOException e) {
-            Log.e(TAG, "Recording failed", e);
+            Log.e(TAG, "Failed to start recording", e);
+            finishVoicemail();
         }
     }
 
-    private void terminateVoicemail() {
-        stopAllEngines();
-        if (activeCall != null) activeCall.disconnect();
-        saveTranscriptionLocally();
-        finish();
+    private void updateWaveform() {
+        if (isRecording && recorder != null) {
+            float amplitude = recorder.getMaxAmplitude();
+            float scale = 1.0f + (amplitude / 32767.0f) * 6.0f;
+            viewWaveform.animate().scaleY(scale).setDuration(100).start();
+            new Handler(Looper.getMainLooper()).postDelayed(this::updateWaveform, 100);
+        }
     }
 
-    private void pickupCall() {
-        stopAllEngines();
-        audioManager.setMode(AudioManager.MODE_IN_CALL);
+    private void finishVoicemail() {
+        if (isRecording && recorder != null) {
+            recorder.stop();
+            recorder.release();
+            recorder = null;
+            isRecording = false;
+            
+            long duration = (System.currentTimeMillis() - startTime) / 1000;
+            saveVoicemailToDb(duration);
+        }
         
-        Intent intent = new Intent(this, OngoingCallActivity.class);
-        intent.putExtra("EXTRA_NUMBER", phoneNumber);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
+        if (player != null) {
+            player.release();
+            player = null;
+        }
+
+        if (activeCall != null) {
+            activeCall.disconnect();
+        }
+
+        CallManager.isVoicemailScreening = false;
+        audioManager.setMode(AudioManager.MODE_NORMAL);
         finish();
     }
 
-    private void stopAllEngines() {
-        CallManager.isVoicemailScreening = false;
-        if (isRecording && mediaRecorder != null) {
-            try { mediaRecorder.stop(); } catch (Exception ignored) {}
-            mediaRecorder.release();
+    private void saveVoicemailToDb(long duration) {
+        if (duration < 1) {
+            new File(currentFilePath).delete();
+            return;
         }
-        if (speechRecognizer != null) {
-            speechRecognizer.destroy();
-        }
-        if (tts != null) {
-            tts.shutdown();
-        }
-        audioManager.setMode(AudioManager.MODE_NORMAL);
-    }
 
-    private void saveTranscriptionLocally() {
-        // Logic to update RecentModel in Database with fullTranscript.toString()
-        // Implementation depends on your RecentDao structure
+        String contactName = Utils.queryContactName(this, phoneNumber);
+        if (contactName == null) contactName = phoneNumber;
+
+        VoicemailEntity entity = new VoicemailEntity(phoneNumber, contactName, currentFilePath, System.currentTimeMillis(), duration);
+        AppDatabase.databaseWriteExecutor.execute(() -> {
+            AppDatabase.getDatabase(VoicemailActivity.this).voicemailDao().insert(entity);
+        });
     }
 
     @Override
     protected void onDestroy() {
-        stopAllEngines();
+        if (isRecording) finishVoicemail();
         super.onDestroy();
     }
 }

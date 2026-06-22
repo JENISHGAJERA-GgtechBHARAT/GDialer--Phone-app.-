@@ -1,176 +1,126 @@
 package com.gg_tech_bharat.gdialer;
 
-import android.content.ContentResolver;
-import android.content.ContentUris;
 import android.content.Intent;
-import android.database.Cursor;
-import android.net.Uri;
 import android.os.Bundle;
-import android.provider.MediaStore;
-import android.util.Log;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.LiveData;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import java.util.ArrayList;
-import java.util.HashSet;
+import com.google.android.material.chip.ChipGroup;
+
 import java.util.List;
-import java.util.Set;
 
 public class VoicemailFragment extends Fragment {
 
     private RecyclerView rvVoicemails;
-    private TextView tvEmpty, btnSelectAll;
-    private VoicemailAdapter adapter;
-    private final List<VoicemailModel> voicemailList = new ArrayList<>();
-    
-    private View layoutSelectionBar;
-    private TextView tvSelectedCount;
-    private LinearLayout layoutDelete, layoutShare;
+    private TextView tvEmpty;
+    private VoicemailLocalAdapter adapter;
+    private VoicemailDao voicemailDao;
+    private LiveData<List<VoicemailEntity>> currentLiveData;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_voicemail, container, false);
         
+        voicemailDao = AppDatabase.getDatabase(requireContext()).voicemailDao();
+        
         rvVoicemails = view.findViewById(R.id.rvVoicemails);
         tvEmpty = view.findViewById(R.id.tvEmptyVoicemails);
-        layoutSelectionBar = view.findViewById(R.id.layoutSelectionBarVoicemail);
-        tvSelectedCount = view.findViewById(R.id.tvSelectedCountVoicemail);
-        layoutDelete = view.findViewById(R.id.layoutDeleteVoicemail);
-        layoutShare = view.findViewById(R.id.layoutShareVoicemail);
-        btnSelectAll = view.findViewById(R.id.btnSelectAllVoicemail);
+        EditText etSearch = view.findViewById(R.id.etSearchVoicemails);
+        ChipGroup chipGroup = view.findViewById(R.id.chipGroupFilters);
+        View btnSettings = view.findViewById(R.id.btnGreetingSettings);
 
         rvVoicemails.setLayoutManager(new LinearLayoutManager(requireContext()));
-        
-        adapter = new VoicemailAdapter(requireContext(), voicemailList);
-        adapter.setOnSelectionModeListener((isSelectionMode, selectedCount) -> {
-            layoutSelectionBar.setVisibility(isSelectionMode ? View.VISIBLE : View.GONE);
-            if (btnSelectAll != null) btnSelectAll.setVisibility(isSelectionMode ? View.VISIBLE : View.GONE);
-            tvSelectedCount.setText(selectedCount + " selected");
-            
-            if (isSelectionMode && btnSelectAll != null) {
-                btnSelectAll.setText(selectedCount == voicemailList.size() ? "Deselect all" : "Select all");
-            }
-        });
-        
+        adapter = new VoicemailLocalAdapter(requireContext());
         rvVoicemails.setAdapter(adapter);
 
-        if (btnSelectAll != null) {
-            btnSelectAll.setOnClickListener(v -> {
-                boolean shouldSelectAll = adapter.getSelectedIds().size() != voicemailList.size();
-                adapter.selectAll(shouldSelectAll);
-            });
-        }
+        setupSwipeActions();
 
-        layoutDelete.setOnClickListener(v -> {
-            int count = adapter.getSelectedIds().size();
-            if (count == 0) return;
-            new AlertDialog.Builder(requireContext())
-                .setTitle("Delete Voicemails")
-                .setMessage("Delete " + count + " selected voicemails?")
-                .setPositiveButton("Delete", (dialog, which) -> deleteSelectedVoicemails())
-                .setNegativeButton("Cancel", null)
-                .show();
+        btnSettings.setOnClickListener(v -> {
+            Intent intent = new Intent(requireContext(), GreetingActivity.class);
+            startActivity(intent);
         });
 
-        layoutShare.setOnClickListener(v -> shareSelectedVoicemails());
-
-        loadVoicemails();
+        setupFilters(chipGroup);
+        setupSearch(etSearch);
         
+        loadVoicemails(voicemailDao.getAllVoicemails());
+
         return view;
     }
 
-    private void loadVoicemails() {
-        voicemailList.clear();
-        Uri uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
-        String selection = MediaStore.Audio.Media.RELATIVE_PATH + " LIKE ?";
-        String[] selectionArgs = new String[]{"Music/Voicemails%"};
-        String sortOrder = MediaStore.Audio.Media.DATE_ADDED + " DESC";
+    private void setupSwipeActions() {
+        ItemTouchHelper.SimpleCallback simpleCallback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
+                return false;
+            }
 
-        String[] projection = new String[]{
-                MediaStore.Audio.Media._ID,
-                MediaStore.Audio.Media.DISPLAY_NAME,
-                MediaStore.Audio.Media.DATE_ADDED
-        };
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                int position = viewHolder.getBindingAdapterPosition();
+                VoicemailEntity voicemail = adapter.getVoicemailAt(position);
 
-        try (Cursor cursor = requireContext().getContentResolver().query(uri, projection, selection, selectionArgs, sortOrder)) {
-            if (cursor != null) {
-                while (cursor.moveToNext()) {
-                    long id = cursor.getLong(0);
-                    String fileName = cursor.getString(1);
-                    long dateAdded = cursor.getLong(2) * 1000;
-
-                    String name = fileName;
-                    if (fileName.startsWith("Voicemail_")) {
-                        String[] parts = fileName.split("_");
-                        if (parts.length >= 2) {
-                            String num = parts[1];
-                            String contactName = Utils.queryContactName(requireContext(), num);
-                            name = (contactName != null) ? contactName : num;
-                        }
-                    }
-
-                    Uri contentUri = ContentUris.withAppendedId(uri, id);
-                    voicemailList.add(new VoicemailModel(id, name, fileName, dateAdded, contentUri));
+                if (direction == ItemTouchHelper.LEFT) {
+                    // Delete
+                    AppDatabase.databaseWriteExecutor.execute(() -> voicemailDao.delete(voicemail));
+                    Toast.makeText(requireContext(), "Voicemail deleted", Toast.LENGTH_SHORT).show();
+                } else if (direction == ItemTouchHelper.RIGHT) {
+                    // Mark as read/unread
+                    voicemail.setRead(!voicemail.isRead());
+                    AppDatabase.databaseWriteExecutor.execute(() -> voicemailDao.update(voicemail));
+                    adapter.notifyItemChanged(position);
                 }
             }
-        } catch (Exception e) {
-            Log.e("VoicemailFragment", "Error loading", e);
-        }
-        
-        if (tvEmpty != null) {
-            tvEmpty.setVisibility(voicemailList.isEmpty() ? View.VISIBLE : View.GONE);
-        }
+        };
 
-        if (adapter != null) adapter.notifyDataSetChanged();
+        new ItemTouchHelper(simpleCallback).attachToRecyclerView(rvVoicemails);
     }
 
-    private void deleteSelectedVoicemails() {
-        Set<Long> selectedIds = adapter.getSelectedIds();
-        ContentResolver cr = requireContext().getContentResolver();
-        for (long id : selectedIds) {
-            Uri uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id);
-            try {
-                cr.delete(uri, null, null);
-            } catch (Exception e) {
-                Log.e("VoicemailFragment", "Delete failed", e);
+    private void setupFilters(ChipGroup group) {
+        group.setOnCheckedStateChangeListener((group1, checkedIds) -> {
+            if (checkedIds.isEmpty()) return;
+            int id = checkedIds.get(0);
+            if (id == R.id.chipAll) loadVoicemails(voicemailDao.getAllVoicemails());
+            else if (id == R.id.chipUnread) loadVoicemails(voicemailDao.getUnreadVoicemails());
+            else if (id == R.id.chipStarred) loadVoicemails(voicemailDao.getStarredVoicemails());
+        });
+    }
+
+    private void setupSearch(EditText et) {
+        et.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String query = "%" + s.toString() + "%";
+                loadVoicemails(voicemailDao.searchVoicemails(query));
             }
-        }
-        adapter.setSelectionMode(false);
-        loadVoicemails();
-        Toast.makeText(requireContext(), "Voicemails deleted", Toast.LENGTH_SHORT).show();
+            @Override public void afterTextChanged(Editable s) {}
+        });
     }
 
-    private void shareSelectedVoicemails() {
-        Set<Long> selectedIds = adapter.getSelectedIds();
-        if (selectedIds.isEmpty()) return;
-
-        ArrayList<Uri> uris = new ArrayList<>();
-        for (long id : selectedIds) {
-            uris.add(ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id));
+    private void loadVoicemails(LiveData<List<VoicemailEntity>> liveData) {
+        if (currentLiveData != null) {
+            currentLiveData.removeObservers(getViewLifecycleOwner());
         }
-
-        Intent intent = new Intent(Intent.ACTION_SEND_MULTIPLE);
-        intent.setType("audio/*");
-        intent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        startActivity(Intent.createChooser(intent, "Share Voicemails"));
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        loadVoicemails();
+        currentLiveData = liveData;
+        currentLiveData.observe(getViewLifecycleOwner(), voicemails -> {
+            adapter.setVoicemails(voicemails);
+            tvEmpty.setVisibility(voicemails == null || voicemails.isEmpty() ? View.VISIBLE : View.GONE);
+        });
     }
 
     @Override

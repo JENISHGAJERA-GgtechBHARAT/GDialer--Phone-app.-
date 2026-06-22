@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-@Database(entities = {ContactModel.class, RecentModel.class, BlockedNumber.class, QuickReplyModel.class, RecentSearch.class}, version = 7, exportSchema = false)
+@Database(entities = {ContactModel.class, RecentModel.class, BlockedNumber.class, QuickReplyModel.class, RecentSearch.class, VoicemailEntity.class}, version = 8, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
 
     public abstract ContactDao contactDao();
@@ -18,6 +18,7 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract BlockedNumberDao blockedNumberDao();
     public abstract QuickReplyDao quickReplyDao();
     public abstract RecentSearchDao recentSearchDao();
+    public abstract VoicemailDao voicemailDao();
 
     private static volatile AppDatabase INSTANCE;
     public static final ExecutorService databaseWriteExecutor =

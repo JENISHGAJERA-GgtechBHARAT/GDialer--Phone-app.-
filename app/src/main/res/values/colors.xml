@@ -43,4 +43,6 @@
     <color name="glass_border">#22FFFFFF</color>
     <color name="gradient_start">#000000</color>
     <color name="gradient_end">#000000</color>
+    <color name="accent_blue">#3498DB</color>
+    <color name="card_background">#1C1C1E</color>
 </resources>

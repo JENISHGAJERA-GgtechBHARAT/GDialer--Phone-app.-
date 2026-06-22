@@ -82,8 +82,7 @@
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gap="8dp">
+            android:orientation="horizontal">
             <Button android:id="@+id/btnReply1" android:layout_width="wrap_content" android:layout_height="40dp" android:text="Who is this?" android:textAllCaps="false" android:background="@drawable/samsung_control_btn_bg" android:textColor="@color/white" android:layout_marginEnd="8dp" />
             <Button android:id="@+id/btnReply2" android:layout_width="wrap_content" android:layout_height="40dp" android:text="I'll call you back" android:textAllCaps="false" android:background="@drawable/samsung_control_btn_bg" android:textColor="@color/white" android:layout_marginEnd="8dp" />
             <Button android:id="@+id/btnReply3" android:layout_width="wrap_content" android:layout_height="40dp" android:text="Can I help you?" android:textAllCaps="false" android:background="@drawable/samsung_control_btn_bg" android:textColor="@color/white" />
