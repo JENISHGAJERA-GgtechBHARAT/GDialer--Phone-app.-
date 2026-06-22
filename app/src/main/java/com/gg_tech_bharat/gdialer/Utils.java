@@ -64,7 +64,6 @@ public class Utils {
     public static void sendSMS(Context context, String number, String msg) {
         if (number == null || number.isEmpty()) return;
         try {
-            // Reliable Samsung Style: If message is provided, try sending. If not or if it fails, open SMS app.
             String cleanNumber = number.replaceAll("[^0-9+]", "");
             
             if (msg == null || msg.trim().isEmpty()) {
@@ -82,19 +81,12 @@ public class Utils {
             }
             
             if (smsManager != null) {
+                // Ensure high-priority sending
                 smsManager.sendTextMessage(cleanNumber, null, msg, null, null);
-                Toast.makeText(context, "Message sent to " + cleanNumber, Toast.LENGTH_SHORT).show();
+                Log.d("Utils", "SMS sent successfully to " + cleanNumber);
             }
         } catch (Exception e) {
             Log.e("Utils", "SMS action failed", e);
-            try {
-                String cleanNumber = number.replaceAll("[^0-9+]", "");
-                Intent intent = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + cleanNumber));
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(intent);
-            } catch (Exception fatal) {
-                Toast.makeText(context, "Failed to send SMS", Toast.LENGTH_SHORT).show();
-            }
         }
     }
 

@@ -4,7 +4,6 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.app.Person;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -18,6 +17,7 @@ import android.telecom.CallAudioState;
 import android.telecom.InCallService;
 import android.telecom.VideoProfile;
 import android.util.Log;
+import android.view.View;
 import android.widget.RemoteViews;
 import androidx.core.app.NotificationCompat;
 
@@ -45,27 +45,32 @@ public class InCallServiceImpl extends InCallService {
             Log.d("InCallServiceImpl", "Broadcast action received: " + action);
             
             try {
-                if (ACTION_END_CALL.equals(action)) {
-                    Call ringing = CallManager.getRingingCall();
-                    if (ringing != null) ringing.disconnect();
-                    else if (CallManager.sCurrentCall != null) CallManager.sCurrentCall.disconnect();
-                } else if (ACTION_ANSWER_CALL.equals(action)) {
-                    int videoState = intent.getIntExtra("VIDEO_STATE", VideoProfile.STATE_AUDIO_ONLY);
-                    Call ringing = CallManager.getRingingCall();
-                    if (ringing != null) {
-                        ringing.answer(videoState);
-                    } else if (CallManager.sCurrentCall != null && CallManager.sCurrentCall.getState() == Call.STATE_RINGING) {
-                        CallManager.sCurrentCall.answer(videoState);
-                    }
-                } else if (ACTION_MUTE.equals(action)) {
-                    CallAudioState state = getCallAudioState();
-                    if (state != null) setMuted(!state.isMuted());
-                } else if (ACTION_SPEAKER.equals(action)) {
-                    CallAudioState state = getCallAudioState();
-                    if (state != null) {
-                        int newRoute = (state.getRoute() == CallAudioState.ROUTE_SPEAKER) ? CallAudioState.ROUTE_EARPIECE : CallAudioState.ROUTE_SPEAKER;
-                        setAudioRoute(newRoute);
-                    }
+                switch (action) {
+                    case ACTION_END_CALL:
+                        Call ringing = CallManager.getRingingCall();
+                        if (ringing != null) ringing.disconnect();
+                        else if (CallManager.sCurrentCall != null) CallManager.sCurrentCall.disconnect();
+                        break;
+                    case ACTION_ANSWER_CALL:
+                        int videoState = intent.getIntExtra("VIDEO_STATE", VideoProfile.STATE_AUDIO_ONLY);
+                        Call ringingAnswer = CallManager.getRingingCall();
+                        if (ringingAnswer != null) {
+                            ringingAnswer.answer(videoState);
+                        } else if (CallManager.sCurrentCall != null && CallManager.sCurrentCall.getState() == Call.STATE_RINGING) {
+                            CallManager.sCurrentCall.answer(videoState);
+                        }
+                        break;
+                    case ACTION_MUTE:
+                        CallAudioState state = getCallAudioState();
+                        if (state != null) setMuted(!state.isMuted());
+                        break;
+                    case ACTION_SPEAKER:
+                        CallAudioState speakerState = getCallAudioState();
+                        if (speakerState != null) {
+                            int newRoute = (speakerState.getRoute() == CallAudioState.ROUTE_SPEAKER) ? CallAudioState.ROUTE_EARPIECE : CallAudioState.ROUTE_SPEAKER;
+                            setAudioRoute(newRoute);
+                        }
+                        break;
                 }
             } catch (Exception e) {
                 Log.e("InCallServiceImpl", "Error handling broadcast action", e);
@@ -73,7 +78,6 @@ public class InCallServiceImpl extends InCallService {
         }
     };
 
-    private final java.util.Set<String> pickupVibratedCalls = new java.util.HashSet<>();
     private final java.util.Set<String> endVibratedCalls = new java.util.HashSet<>();
 
     private final Call.Callback callCallback = new Call.Callback() {
@@ -85,20 +89,7 @@ public class InCallServiceImpl extends InCallService {
             String callId = (call.getDetails() != null) ? String.valueOf(call.getDetails().getCreationTimeMillis()) : call.toString();
 
             if (state == Call.STATE_ACTIVE) {
-                if (!pickupVibratedCalls.contains(callId)) {
-                    // Short vibrate on answer only for outgoing calls (remote pickup)
-                    boolean isOutgoing;
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        isOutgoing = call.getDetails().getCallDirection() == Call.Details.DIRECTION_OUTGOING;
-                    } else {
-                        isOutgoing = true; 
-                    }
-                    
-                    if (isOutgoing) {
-                        try { Utils.vibrateDevice(getApplicationContext(), 100); } catch (Exception ignored) {}
-                        pickupVibratedCalls.add(callId);
-                    }
-                }
+                // Remove pickup vibration to avoid "vibrate twice" issue
                 handleCallState(call, state); // MUST CALL THIS TO LAUNCH ONGOING SCREEN
             } else if (state == Call.STATE_DISCONNECTED) {
                 if (!endVibratedCalls.contains(callId)) {
@@ -106,11 +97,18 @@ public class InCallServiceImpl extends InCallService {
                     try { Utils.vibrateDevice(getApplicationContext(), 100); } catch (Exception ignored) {} 
                     endVibratedCalls.add(callId);
                 }
-                pickupVibratedCalls.remove(callId);
                 saveCallToLocalLog(call);
                 cleanupCall(call);
             } else {
                 handleCallState(call, state);
+            }
+        }
+
+        @Override
+        public void onDetailsChanged(Call call, Call.Details details) {
+            super.onDetailsChanged(call, details);
+            if (call.getState() == Call.STATE_ACTIVE || call.getState() == Call.STATE_DIALING || call.getState() == Call.STATE_CONNECTING) {
+                showActiveCallNotification(getNumberFromCall(call));
             }
         }
 
@@ -202,14 +200,9 @@ public class InCallServiceImpl extends InCallService {
     }
 
     private void onAllCallsEnded() {
-        RecordingService.stop(this); 
         setAudioRoute(CallAudioState.ROUTE_EARPIECE);
         setMuted(false);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE);
-        } else {
-            stopForeground(true);
-        }
+        stopForeground(STOP_FOREGROUND_REMOVE);
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (nm != null) nm.cancel(NOTIFICATION_ID);
         Intent intent = new Intent("com.gg_tech_bharat.gdialer.CALL_DISCONNECTED");
@@ -240,19 +233,15 @@ public class InCallServiceImpl extends InCallService {
 
                 String name = getContactName(number);
                 
-                // POPUP Behavior: If an app is running (not home, not us)
-                // FULL SCREEN Behavior: If locked, at home, or in our app
+                // FORCED ACTIVITY LAUNCH: For Lock screen, Home, GDialer, or Call Waiting
+                // This ensures the Samsung-style "Hold & Answer" buttons are always accessible
                 if (isLocked || isHome || isForeground || CallManager.getCalls().size() > 1) {
-                    if (isLocked) {
-                        // Use HIGH importance for lockscreen fullScreenIntent
-                        showRingingNotification(number, call.getDetails().getVideoState(), CHANNEL_ID_HIGH);
-                    } else {
-                        // Manually start activity and show silent tray notification
-                        startCallActivity(IncomingCallActivity.class, number, name);
-                        showRingingNotification(number, call.getDetails().getVideoState(), CHANNEL_ID_DEFAULT);
-                    }
+                    startCallActivity(IncomingCallActivity.class, number, name);
+                    
+                    // Show high-priority notification to ensure lockscreen visibility and ringer/popup authority
+                    showRingingNotification(number, call.getDetails().getVideoState(), CHANNEL_ID_HIGH);
                 } else {
-                    // ANY other app is running -> Popup only
+                    // ANY other app is running (multi-tasking) -> Popup (Heads-up) only
                     showRingingNotification(number, call.getDetails().getVideoState(), CHANNEL_ID_HIGH);
                 }
             } else if (state == Call.STATE_ACTIVE || state == Call.STATE_DIALING || state == Call.STATE_CONNECTING) {
@@ -261,12 +250,23 @@ public class InCallServiceImpl extends InCallService {
                 
                 android.app.KeyguardManager km = (android.app.KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
                 boolean isLocked = km != null && km.isKeyguardLocked();
-                boolean isHome = isDeviceAtHome();
-                boolean isForeground = isAppInForeground();
                 boolean isGame = isGameRunning();
+                boolean isLandscape = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 
-                // Only launch full screen if we are "supposed" to be in focus (not playing a game)
-                if (isLocked || isHome || isForeground || !isGame || CallManager.getCalls().size() > 1) {
+                // Check if voicemail screening is active to prevent launching OngoingCallActivity
+                if (CallManager.isVoicemailScreening) {
+                    Log.d("InCallServiceImpl", "Voicemail screening active, suppressing OngoingCallActivity");
+                    showActiveCallNotification(number);
+                    return;
+                }
+
+                // FIX: Show Ongoing Call screen everywhere EXCEPT in games or landscape (unless locked)
+                boolean showFullScreen = true;
+                if ((isGame || isLandscape) && !isLocked && CallManager.getCalls().size() <= 1) {
+                    showFullScreen = false;
+                }
+
+                if (showFullScreen) {
                     startCallActivity(OngoingCallActivity.class, number, name);
                 }
 
@@ -382,6 +382,21 @@ public class InCallServiceImpl extends InCallService {
                 rv.setOnClickPendingIntent(R.id.btnNotifEnd, endPi);
                 rv.setOnClickPendingIntent(R.id.btnNotifMute, mutePi);
                 rv.setOnClickPendingIntent(R.id.btnNotifSpeaker, speakerPi);
+
+                // HD and WiFi Indicator update for Notification
+                if (CallManager.sCurrentCall != null) {
+                    Call.Details details = CallManager.sCurrentCall.getDetails();
+                    if (details != null) {
+                        int props = details.getCallProperties();
+                        boolean isWifi = (props & Call.Details.PROPERTY_WIFI) != 0;
+                        boolean isHd = !isWifi && (props & Call.Details.PROPERTY_HIGH_DEF_AUDIO) != 0;
+                        
+                        rv.setTextViewText(R.id.tvNotifHd, "VoLTE");
+                        rv.setViewVisibility(R.id.tvNotifHd, isHd ? View.VISIBLE : View.GONE);
+                        rv.setTextViewText(R.id.tvNotifWifi, "VoWiFi");
+                        rv.setViewVisibility(R.id.tvNotifWifi, isWifi ? View.VISIBLE : View.GONE);
+                    }
+                }
 
                 CallAudioState audioState = getCallAudioState();
                 String speakerLabelText;

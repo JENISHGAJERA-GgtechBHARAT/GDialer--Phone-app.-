@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#121212"
+    android:fitsSystemWindows="true">
+
+    <!-- Header -->
+    <LinearLayout
+        android:id="@+id/layoutHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="60dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/tvVoicemailNumber"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="+91 98765 43210"
+            android:textColor="@color/white"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvVoicemailStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Live Transcription..."
+            android:textColor="#80FFFFFF"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- Transcription Area -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollTranscription"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginVertical="20dp"
+        android:background="@drawable/glass_card"
+        android:padding="20dp"
+        app:layout_constraintBottom_toTopOf="@+id/layoutQuickReplies"
+        app:layout_constraintTop_toBottomOf="@id/layoutHeader">
+
+        <TextView
+            android:id="@+id/tvLiveTranscription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Listening for message..."
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:lineSpacingExtra="6dp" />
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- Waveform Visualizer -->
+    <View
+        android:id="@+id/viewWaveformIndicator"
+        android:layout_width="120dp"
+        android:layout_height="3dp"
+        android:layout_marginBottom="8dp"
+        android:background="@color/accent_green"
+        android:alpha="0"
+        app:layout_constraintBottom_toTopOf="@id/layoutQuickReplies"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Quick Replies Bar -->
+    <HorizontalScrollView
+        android:id="@+id/layoutQuickReplies"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:paddingHorizontal="16dp"
+        android:scrollbars="none"
+        app:layout_constraintBottom_toTopOf="@+id/layoutMainActions">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gap="8dp">
+            <Button android:id="@+id/btnReply1" android:layout_width="wrap_content" android:layout_height="40dp" android:text="Who is this?" android:textAllCaps="false" android:background="@drawable/samsung_control_btn_bg" android:textColor="@color/white" android:layout_marginEnd="8dp" />
+            <Button android:id="@+id/btnReply2" android:layout_width="wrap_content" android:layout_height="40dp" android:text="I'll call you back" android:textAllCaps="false" android:background="@drawable/samsung_control_btn_bg" android:textColor="@color/white" android:layout_marginEnd="8dp" />
+            <Button android:id="@+id/btnReply3" android:layout_width="wrap_content" android:layout_height="40dp" android:text="Can I help you?" android:textAllCaps="false" android:background="@drawable/samsung_control_btn_bg" android:textColor="@color/white" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Main Action Buttons -->
+    <LinearLayout
+        android:id="@+id/layoutMainActions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="40dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <FrameLayout
+            android:id="@+id/btnEndVoicemail"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_marginEnd="48dp"
+            android:background="@drawable/red_circle"
+            android:elevation="6dp">
+            <ImageView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_phone"
+                android:rotation="135"
+                app:tint="@color/white" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/btnPickupCall"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:background="@drawable/green_circle"
+            android:elevation="6dp">
+            <ImageView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_phone"
+                app:tint="@color/black" />
+        </FrameLayout>
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

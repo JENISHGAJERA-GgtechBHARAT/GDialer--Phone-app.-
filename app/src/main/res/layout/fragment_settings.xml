@@ -121,62 +121,15 @@
                         app:tint="@color/text_secondary" />
                 </LinearLayout>
 
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
-
-        <!-- Call Settings Group -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginBottom="8dp"
-            android:text="Call Recording"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
-            app:cardBackgroundColor="@color/card_bg"
-            app:cardCornerRadius="@dimen/oneui_card_radius"
-            app:cardElevation="0dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <!-- Auto Record Calls -->
-                <LinearLayout style="@style/SettingsItemContainer">
-                    <TextView style="@style/SettingsItemTitle" android:text="Auto record calls" />
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switchAutoRecord"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
-                </LinearLayout>
-
                 <View style="@style/SettingsDivider" />
 
-                <!-- Record Unknown Numbers -->
-                <LinearLayout style="@style/SettingsItemContainer">
-                    <TextView style="@style/SettingsItemTitle" android:text="Record unknown numbers" />
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switchRecordUnknown"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
-                </LinearLayout>
-
-                <View style="@style/SettingsDivider" />
-
-                <!-- Recording History -->
-                <LinearLayout style="@style/SettingsItemContainer" android:id="@+id/layoutRecordingHistory" android:clickable="true" android:focusable="true">
-                    <TextView style="@style/SettingsItemTitle" android:text="Recorded calls history" />
+                <!-- Quick Replies Settings -->
+                <LinearLayout style="@style/SettingsItemContainer" android:id="@+id/layoutQuickRepliesSettings" android:clickable="true" android:focusable="true">
+                    <TextView style="@style/SettingsItemTitle" android:text="Quick response messages" />
                     <ImageView
                         android:layout_width="20dp"
                         android:layout_height="20dp"
-                        android:src="@drawable/ic_info"
+                        android:src="@drawable/ic_message"
                         app:tint="@color/text_secondary" />
                 </LinearLayout>
 

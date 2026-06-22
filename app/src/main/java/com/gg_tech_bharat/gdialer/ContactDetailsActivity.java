@@ -1,5 +1,8 @@
 package com.gg_tech_bharat.gdialer;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -40,6 +43,8 @@ public class ContactDetailsActivity extends AppCompatActivity {
         database = AppDatabase.getDatabase(this);
 
         phoneNumber = getIntent().getStringExtra("EXTRA_NUMBER");
+        String initialName = getIntent().getStringExtra("EXTRA_NAME");
+        
         if (phoneNumber == null) {
             phoneNumber = "+91 98765 43210";
         }
@@ -50,6 +55,9 @@ public class ContactDetailsActivity extends AppCompatActivity {
         ivAvatar = findViewById(R.id.ivDetailAvatar);
         tvName = findViewById(R.id.tvDetailName);
         tvNumber = findViewById(R.id.tvDetailNumber);
+        
+        if (initialName != null) tvName.setText(initialName);
+        tvNumber.setText(phoneNumber);
         layoutCall = findViewById(R.id.layoutCall);
         layoutMessage = findViewById(R.id.layoutMessage);
         layoutWhatsApp = findViewById(R.id.layoutWhatsApp);
@@ -95,6 +103,18 @@ public class ContactDetailsActivity extends AppCompatActivity {
 
         layoutBottomBlock.setOnClickListener(v -> toggleBlock());
         layoutBottomDelete.setOnClickListener(v -> deleteContact());
+
+        // Long click to copy number
+        tvNumber.setOnLongClickListener(v -> {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            ClipData clip = ClipData.newPlainText("Phone Number", phoneNumber);
+            if (clipboard != null) {
+                clipboard.setPrimaryClip(clip);
+                Toast.makeText(this, "Number copied to clipboard", Toast.LENGTH_SHORT).show();
+                Utils.triggerHaptic(v);
+            }
+            return true;
+        });
     }
 
     @Override

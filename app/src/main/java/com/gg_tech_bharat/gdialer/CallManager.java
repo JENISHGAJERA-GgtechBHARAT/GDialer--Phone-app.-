@@ -9,6 +9,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class CallManager {
 
     public static Call sCurrentCall;
+    public static boolean isVoicemailScreening = false;
     private static final List<Call> sCalls = new CopyOnWriteArrayList<>();
 
     public interface CallStateListener {

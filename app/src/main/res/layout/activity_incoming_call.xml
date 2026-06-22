@@ -43,18 +43,53 @@
             android:text="SIM 1"
             android:textColor="#80FFFFFF"
             android:textSize="14sp" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvIncomingVolte"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/rounded_card"
+                android:backgroundTint="#40FFFFFF"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="1dp"
+                android:text="VoLTE"
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvIncomingVowifi"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/rounded_card"
+                android:backgroundTint="#40FFFFFF"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="1dp"
+                android:text="VoWiFi"
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Center Area -->
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/ivIncomingCallerPhoto"
-        android:layout_width="175dp"
-        android:layout_height="185dp"
-        android:layout_marginTop="46dp"
-        android:layout_marginBottom="118dp"
+        android:layout_width="180dp"
+        android:layout_height="180dp"
+        android:layout_marginTop="40dp"
         android:scaleType="centerCrop"
         android:src="@drawable/ic_contacts"
-        app:layout_constraintBottom_toTopOf="@+id/swipeActionsContainer"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/layoutTopInfo"
@@ -80,21 +115,70 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/ivIncomingCallerPhoto" />
 
-    <!-- Quick Replies Area -->
-    <HorizontalScrollView
-        android:id="@+id/scrollQuickReplies"
-        android:layout_width="match_parent"
+    <!-- Secondary Actions (Message & Voicemail) -->
+    <LinearLayout
+        android:id="@+id/layoutIncomingSecondaryActions"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        android:paddingHorizontal="24dp"
-        android:scrollbars="none"
-        app:layout_constraintBottom_toTopOf="@id/barrierBottomButtons">
+        android:layout_marginBottom="40dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toTopOf="@id/barrierBottomButtons"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
         <LinearLayout
-            android:id="@+id/layoutQuickReplies"
+            android:id="@+id/layoutQuickResponseHandle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal" />
-    </HorizontalScrollView>
+            android:layout_marginEnd="50dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:src="@drawable/ic_message"
+                app:tint="@color/text_secondary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Message"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnScreenCallVoicemail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="50dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:src="@android:drawable/stat_notify_voicemail"
+                app:tint="@color/text_secondary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Voicemail"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
 
     <androidx.constraintlayout.widget.Barrier
         android:id="@+id/barrierBottomButtons"
@@ -120,18 +204,20 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:clickable="true"
             android:focusable="true"
-            android:background="?attr/selectableItemBackgroundBorderless">
+            android:gravity="center"
+            android:orientation="vertical">
+
             <ImageView
                 android:layout_width="72dp"
                 android:layout_height="72dp"
-                android:padding="20dp"
                 android:background="@drawable/red_circle"
-                android:src="@drawable/ic_phone_end"
+                android:padding="20dp"
+                android:src="@drawable/ic_phone"
                 app:tint="@color/white" />
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -147,18 +233,20 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:clickable="true"
             android:focusable="true"
-            android:background="?attr/selectableItemBackgroundBorderless">
+            android:gravity="center"
+            android:orientation="vertical">
+
             <ImageView
                 android:layout_width="72dp"
                 android:layout_height="72dp"
-                android:padding="20dp"
                 android:background="@drawable/green_circle"
+                android:padding="20dp"
                 android:src="@drawable/ic_phone"
                 app:tint="@color/black" />
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -174,18 +262,20 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:clickable="true"
             android:focusable="true"
-            android:background="?attr/selectableItemBackgroundBorderless">
+            android:gravity="center"
+            android:orientation="vertical">
+
             <ImageView
                 android:layout_width="72dp"
                 android:layout_height="72dp"
-                android:padding="20dp"
                 android:background="@drawable/blue_circle"
+                android:padding="20dp"
                 android:src="@drawable/ic_add"
                 app:tint="@color/white" />
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -201,18 +291,20 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:clickable="true"
             android:focusable="true"
-            android:background="?attr/selectableItemBackgroundBorderless">
+            android:gravity="center"
+            android:orientation="vertical">
+
             <ImageView
                 android:layout_width="72dp"
                 android:layout_height="72dp"
-                android:padding="20dp"
                 android:background="@drawable/gray_circle"
+                android:padding="20dp"
                 android:src="@drawable/ic_message"
                 app:tint="@color/white" />
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -224,25 +316,49 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Swipe Actions Area (Samsung Style) -->
+    <!-- Swipe Actions Area -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/swipeActionsContainer"
         android:layout_width="match_parent"
-        android:layout_height="160dp"
-        android:layout_marginBottom="64dp"
+        android:layout_height="180dp"
+        android:layout_marginBottom="40dp"
         app:layout_constraintBottom_toBottomOf="parent">
 
-        <!-- Pickup (Left) -->
+        <!-- Rings for Accept -->
+        <View
+            android:id="@+id/viewAcceptRing1"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:alpha="0"
+            android:background="@drawable/ring_outline_green"
+            app:layout_constraintBottom_toBottomOf="@id/layoutAccept"
+            app:layout_constraintEnd_toEndOf="@id/layoutAccept"
+            app:layout_constraintStart_toStartOf="@id/layoutAccept"
+            app:layout_constraintTop_toTopOf="@id/layoutAccept" />
+
+        <View
+            android:id="@+id/viewAcceptRing2"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:alpha="0"
+            android:background="@drawable/ring_outline_green"
+            app:layout_constraintBottom_toBottomOf="@id/layoutAccept"
+            app:layout_constraintEnd_toEndOf="@id/layoutAccept"
+            app:layout_constraintStart_toStartOf="@id/layoutAccept"
+            app:layout_constraintTop_toTopOf="@id/layoutAccept" />
+
         <FrameLayout
             android:id="@+id/layoutAccept"
-            android:layout_width="88dp"
-            android:layout_height="88dp"
-            android:layout_marginStart="48dp"
+            android:layout_width="84dp"
+            android:layout_height="84dp"
+            android:layout_marginStart="40dp"
             android:background="@drawable/green_circle"
             android:elevation="8dp"
+            android:foreground="@drawable/swipe_ripple"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
+
             <ImageView
                 android:layout_width="36dp"
                 android:layout_height="36dp"
@@ -251,14 +367,37 @@
                 app:tint="@color/black" />
         </FrameLayout>
 
-        <!-- Decline (Right) -->
+        <!-- Rings for Reject -->
+        <View
+            android:id="@+id/viewRejectRing1"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:alpha="0"
+            android:background="@drawable/ring_outline_red"
+            app:layout_constraintBottom_toBottomOf="@id/layoutReject"
+            app:layout_constraintEnd_toEndOf="@id/layoutReject"
+            app:layout_constraintStart_toStartOf="@id/layoutReject"
+            app:layout_constraintTop_toTopOf="@id/layoutReject" />
+
+        <View
+            android:id="@+id/viewRejectRing2"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:alpha="0"
+            android:background="@drawable/ring_outline_red"
+            app:layout_constraintBottom_toBottomOf="@id/layoutReject"
+            app:layout_constraintEnd_toEndOf="@id/layoutReject"
+            app:layout_constraintStart_toStartOf="@id/layoutReject"
+            app:layout_constraintTop_toTopOf="@id/layoutReject" />
+
         <FrameLayout
             android:id="@+id/layoutReject"
-            android:layout_width="88dp"
-            android:layout_height="88dp"
-            android:layout_marginEnd="48dp"
+            android:layout_width="84dp"
+            android:layout_height="84dp"
+            android:layout_marginEnd="40dp"
             android:background="@drawable/red_circle"
             android:elevation="8dp"
+            android:foreground="@drawable/swipe_ripple"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent">
@@ -267,6 +406,7 @@
                 android:layout_width="36dp"
                 android:layout_height="36dp"
                 android:layout_gravity="center"
+                android:rotation="45"
                 android:src="@android:drawable/sym_action_call"
                 app:tint="@color/white" />
         </FrameLayout>

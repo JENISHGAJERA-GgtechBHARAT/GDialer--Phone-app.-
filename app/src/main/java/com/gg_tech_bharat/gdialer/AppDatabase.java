@@ -10,12 +10,14 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-@Database(entities = {ContactModel.class, RecentModel.class, BlockedNumber.class}, version = 4, exportSchema = false)
+@Database(entities = {ContactModel.class, RecentModel.class, BlockedNumber.class, QuickReplyModel.class, RecentSearch.class}, version = 7, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
 
     public abstract ContactDao contactDao();
     public abstract RecentDao recentDao();
     public abstract BlockedNumberDao blockedNumberDao();
+    public abstract QuickReplyDao quickReplyDao();
+    public abstract RecentSearchDao recentSearchDao();
 
     private static volatile AppDatabase INSTANCE;
     public static final ExecutorService databaseWriteExecutor =
@@ -31,6 +33,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 if (INSTANCE == null) {
                     INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
                                     AppDatabase.class, "gdialer_database")
+                            .addCallback(sRoomDatabaseCallback)
                             .fallbackToDestructiveMigration()
                             .build();
                 }
@@ -38,4 +41,18 @@ public abstract class AppDatabase extends RoomDatabase {
         }
         return INSTANCE;
     }
+
+    private static RoomDatabase.Callback sRoomDatabaseCallback = new RoomDatabase.Callback() {
+        @Override
+        public void onCreate(@NonNull SupportSQLiteDatabase db) {
+            super.onCreate(db);
+            databaseWriteExecutor.execute(() -> {
+                QuickReplyDao dao = INSTANCE.quickReplyDao();
+                dao.insert(new QuickReplyModel("I will call you later."));
+                dao.insert(new QuickReplyModel("Can't talk right now."));
+                dao.insert(new QuickReplyModel("I'm in a meeting."));
+                dao.insert(new QuickReplyModel("Call me back later."));
+            });
+        }
+    };
 }

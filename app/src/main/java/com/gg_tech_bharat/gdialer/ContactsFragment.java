@@ -38,7 +38,9 @@ public class ContactsFragment extends Fragment {
     private ContactAdapter contactsAdapter;
     private AppDatabase database;
     private EditText etSearch;
-    private View layoutSelectionBar;
+    private android.widget.ImageButton btnClearSearch;
+    private View layoutSelectionBar, layoutRecentContactsHeader;
+    private TextView btnCloseAllRecentContacts;
     private LinearLayout layoutSelectAll, layoutDeleteSelected, layoutSideIndex;
     private TextView tvSelectedCount, tvSelectAllText;
     private OnBackPressedCallback onBackPressedCallback;
@@ -58,7 +60,10 @@ public class ContactsFragment extends Fragment {
 
         rvContacts = view.findViewById(R.id.rvContacts);
         etSearch = view.findViewById(R.id.etSearchContacts);
+        btnClearSearch = view.findViewById(R.id.btnClearSearch);
         layoutSelectionBar = view.findViewById(R.id.layoutSelectionBar);
+        layoutRecentContactsHeader = view.findViewById(R.id.layoutRecentContactsHeader);
+        btnCloseAllRecentContacts = view.findViewById(R.id.btnCloseAllRecentContacts);
         layoutSelectAll = view.findViewById(R.id.layoutSelectAll);
         layoutDeleteSelected = view.findViewById(R.id.layoutDeleteSelected);
         tvSelectedCount = view.findViewById(R.id.tvSelectedCount);
@@ -114,11 +119,58 @@ public class ContactsFragment extends Fragment {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
                 if (r != null) h.removeCallbacks(r);
-                r = () -> contactsAdapter.filter(s.toString());
+                String query = s.toString();
+                if (btnClearSearch != null) btnClearSearch.setVisibility(query.isEmpty() ? View.GONE : View.VISIBLE);
+                
+                // Show/Hide Recent Contacts Header based on search state
+                if (layoutRecentContactsHeader != null) {
+                    layoutRecentContactsHeader.setVisibility(query.isEmpty() && etSearch.hasFocus() ? View.VISIBLE : View.GONE);
+                }
+
+                r = () -> {
+                    if (query.isEmpty()) {
+                        loadDefaultContacts();
+                    } else {
+                        AppDatabase.databaseWriteExecutor.execute(() -> {
+                            List<ContactModel> filtered = database.contactDao().searchContactsWithRanking("%" + query + "%", query + "%");
+                            if (getActivity() != null) getActivity().runOnUiThread(() -> contactsAdapter.setContacts(filtered));
+                        });
+                    }
+                };
                 h.postDelayed(r, 250);
             }
             @Override public void afterTextChanged(Editable s) {}
         });
+
+        etSearch.setOnFocusChangeListener((v, hasFocus) -> {
+            if (layoutRecentContactsHeader != null) {
+                layoutRecentContactsHeader.setVisibility(hasFocus && etSearch.getText().toString().isEmpty() ? View.VISIBLE : View.GONE);
+            }
+            if (hasFocus && etSearch.getText().toString().isEmpty()) {
+                loadRecentContactsForSearch();
+            }
+        });
+
+        if (btnCloseAllRecentContacts != null) {
+            btnCloseAllRecentContacts.setOnClickListener(v -> {
+                Utils.triggerHaptic(v);
+                // Clear "Recent Contacts" from search view (using a smooth fade)
+                view.findViewById(R.id.rvContacts).animate().alpha(0f).setDuration(300).withEndAction(() -> {
+                    contactsAdapter.setContacts(new ArrayList<>());
+                    view.findViewById(R.id.rvContacts).setAlpha(1f);
+                    if (layoutRecentContactsHeader != null) layoutRecentContactsHeader.setVisibility(View.GONE);
+                    com.google.android.material.snackbar.Snackbar.make(view, "Recent contacts cleared", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
+                }).start();
+            });
+        }
+
+        if (btnClearSearch != null) {
+            btnClearSearch.setOnClickListener(v -> {
+                Utils.triggerHaptic(v);
+                etSearch.setText("");
+                com.google.android.material.snackbar.Snackbar.make(view, "Search cleared", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
+            });
+        }
 
         view.findViewById(R.id.btnMenuSettings).setOnClickListener(v -> {
             Utils.triggerHaptic(v);
@@ -154,6 +206,22 @@ public class ContactsFragment extends Fragment {
         })).attachToRecyclerView(rvContacts);
 
         return view;
+    }
+
+    private void loadDefaultContacts() {
+        AppDatabase.databaseWriteExecutor.execute(() -> {
+            List<ContactModel> all = database.contactDao().getAllContactsSync();
+            if (getActivity() != null) getActivity().runOnUiThread(() -> contactsAdapter.setContacts(all));
+        });
+    }
+
+    private void loadRecentContactsForSearch() {
+        // Show recently called contacts in the search list
+        AppDatabase.databaseWriteExecutor.execute(() -> {
+            // Join contacts with recents to get most recent ones
+            List<ContactModel> recents = database.contactDao().searchContactsWithRanking("%%", "%%");
+            if (getActivity() != null) getActivity().runOnUiThread(() -> contactsAdapter.setContacts(recents));
+        });
     }
 
     private void deleteFromSystemContacts(String number) {

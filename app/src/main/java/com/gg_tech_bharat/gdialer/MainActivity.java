@@ -8,6 +8,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.telecom.TelecomManager;
+import android.net.Uri;
+import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -21,7 +23,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_SET_DEFAULT_DIALER = 3005;
 
     private ViewPager2 viewPager;
-    private TextView tabKeypad, tabRecents, tabContacts;
+    private TextView tabKeypad, tabRecents, tabContacts, tabVoicemail;
     private AppDatabase database;
 
     @Override
@@ -52,11 +54,12 @@ public class MainActivity extends AppCompatActivity {
         tabKeypad = findViewById(R.id.tabKeypad);
         tabRecents = findViewById(R.id.tabRecents);
         tabContacts = findViewById(R.id.tabContacts);
+        tabVoicemail = findViewById(R.id.tabVoicemail);
 
         setupViewPager();
         setupBottomNavigation();
 
-        viewPager.setCurrentItem(1, false);
+        handleIntent(getIntent());
 
         if (!PermissionManager.hasAllPermissions(this)) {
             PermissionManager.requestPermissions(this);
@@ -80,10 +83,11 @@ public class MainActivity extends AppCompatActivity {
                     case 0: return new KeypadFragment();
                     case 1: return new RecentsFragment();
                     case 2: return new ContactsFragment();
+                    case 3: return new VoicemailFragment();
                     default: return new KeypadFragment();
                 }
             }
-            @Override public int getItemCount() { return 3; }
+            @Override public int getItemCount() { return 4; }
         });
 
         viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
@@ -96,6 +100,7 @@ public class MainActivity extends AppCompatActivity {
         tabKeypad.setOnClickListener(v -> { Utils.triggerHaptic(v); viewPager.setCurrentItem(0, true); });
         tabRecents.setOnClickListener(v -> { Utils.triggerHaptic(v); viewPager.setCurrentItem(1, true); });
         tabContacts.setOnClickListener(v -> { Utils.triggerHaptic(v); viewPager.setCurrentItem(2, true); });
+        tabVoicemail.setOnClickListener(v -> { Utils.triggerHaptic(v); viewPager.setCurrentItem(3, true); });
     }
 
     public void switchToTab(int index) {
@@ -103,11 +108,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateTabSelection(int p) {
-        resetTabStyle(tabKeypad); resetTabStyle(tabRecents); resetTabStyle(tabContacts);
+        resetTabStyle(tabKeypad); resetTabStyle(tabRecents); resetTabStyle(tabContacts); resetTabStyle(tabVoicemail);
         switch (p) {
             case 0: highlightTab(tabKeypad); break;
             case 1: highlightTab(tabRecents); break;
             case 2: highlightTab(tabContacts); break;
+            case 3: highlightTab(tabVoicemail); break;
         }
     }
 
@@ -127,6 +133,8 @@ public class MainActivity extends AppCompatActivity {
             String def = tm.getDefaultDialerPackage();
             if (def == null || !def.equals(getPackageName())) {
                 requestDefaultDialerRole();
+            } else {
+                Log.d("MainActivity", "Role Active: System Binder Connected");
             }
         }
     }
@@ -150,6 +158,35 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == REQUEST_CODE_SET_DEFAULT_DIALER && resultCode != RESULT_OK) {
             Toast.makeText(this, "GDialer needs to be the default app to function correctly", Toast.LENGTH_LONG).show();
         }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIntent(intent);
+    }
+
+    private void handleIntent(Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        if (Intent.ACTION_DIAL.equals(action) || Intent.ACTION_VIEW.equals(action) || Intent.ACTION_CALL.equals(action)) {
+            Uri data = intent.getData();
+            if (data != null && "tel".equals(data.getScheme())) {
+                String number = data.getSchemeSpecificPart();
+                if (number != null && !number.isEmpty()) {
+                    viewPager.setCurrentItem(0, false); // Switch to Keypad
+                    new Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                        Fragment f = getSupportFragmentManager().findFragmentByTag("f0");
+                        if (f instanceof KeypadFragment) {
+                            ((KeypadFragment) f).setDialedNumber(number);
+                        }
+                    }, 200);
+                    return;
+                }
+            }
+        }
+        viewPager.setCurrentItem(1, false); // Default to Recents
     }
 
     @Override

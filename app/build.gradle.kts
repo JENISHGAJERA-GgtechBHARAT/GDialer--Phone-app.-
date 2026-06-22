@@ -58,6 +58,9 @@ dependencies {
     implementation("com.github.bumptech.glide:glide:4.16.0")
     annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
 
+    // WebRTC for Audio Processing (Noise Suppression & Echo Cancellation)
+    implementation("io.github.webrtc-sdk:android:125.6422.06.1")
+    
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

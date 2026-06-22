@@ -31,9 +31,15 @@ public class PermissionManager {
         for (String p : REQUIRED_PERMISSIONS) {
             if (ContextCompat.checkSelfPermission(context, p) != PackageManager.PERMISSION_GRANTED) return false;
         }
+        
+        // Media Audio permission for Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_AUDIO) != PackageManager.PERMISSION_GRANTED) return false;
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return false;
+        } else {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) return false;
         }
+        
         return true;
     }
 
@@ -42,9 +48,17 @@ public class PermissionManager {
         for (String p : REQUIRED_PERMISSIONS) {
             if (ContextCompat.checkSelfPermission(activity, p) != PackageManager.PERMISSION_GRANTED) list.add(p);
         }
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) list.add(Manifest.permission.POST_NOTIFICATIONS);
+            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_AUDIO) != PackageManager.PERMISSION_GRANTED) 
+                list.add(Manifest.permission.READ_MEDIA_AUDIO);
+            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) 
+                list.add(Manifest.permission.POST_NOTIFICATIONS);
+        } else {
+            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) 
+                list.add(Manifest.permission.READ_EXTERNAL_STORAGE);
         }
+
         if (!list.isEmpty()) {
             ActivityCompat.requestPermissions(activity, list.toArray(new String[0]), 1001);
         }

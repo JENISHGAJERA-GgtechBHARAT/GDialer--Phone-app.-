@@ -231,6 +231,13 @@ public class KeypadFragment extends Fragment implements View.OnClickListener {
 
     private void clearDigits() { dialedDigits.setLength(0); tvDialedNumber.setText(""); }
 
+    public void setDialedNumber(String number) {
+        if (number == null) return;
+        dialedDigits.setLength(0);
+        dialedDigits.append(number.replaceAll("[^0-9*#+]", ""));
+        if (tvDialedNumber != null) tvDialedNumber.setText(dialedDigits.toString());
+    }
+
     private void setupSimButtons() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
             TelecomManager tm = (TelecomManager) requireContext().getSystemService(Context.TELECOM_SERVICE);

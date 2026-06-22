@@ -42,7 +42,7 @@ public class SpeedDialActivity extends AppCompatActivity {
 
         // Load contacts from DB
         AppDatabase.databaseWriteExecutor.execute(() -> {
-            List<ContactModel> contacts = database.contactDao().searchContactsSync("%%");
+            List<ContactModel> contacts = database.contactDao().searchContactsWithRanking("%%", "%%");
             if (contacts != null) {
                 allContacts.addAll(contacts);
             }

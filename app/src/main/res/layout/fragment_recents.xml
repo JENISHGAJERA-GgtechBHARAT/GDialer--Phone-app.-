@@ -35,7 +35,7 @@
                         android:layout_height="wrap_content"
                         android:text="Recents"
                         android:textColor="@color/text_primary"
-                        android:textSize="24dp"
+                        android:textSize="24sp"
                         android:textStyle="bold" />
 
                     <ImageButton
@@ -85,8 +85,44 @@
                             android:textColor="@color/text_primary"
                             android:textSize="16sp" />
 
+                        <ImageButton
+                            android:id="@+id/btnClearSearch"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:src="@android:drawable/ic_menu_close_clear_cancel"
+                            android:visibility="gone"
+                            app:tint="@color/text_secondary" />
+
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
+
+                <!-- Recent Search Section Header (Hidden by default) -->
+                <RelativeLayout
+                    android:id="@+id/layoutRecentSearchHeader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:visibility="gone">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Recent searches"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/btnCloseAllSearch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:text="Close all"
+                        android:textColor="@color/accent_green"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:padding="4dp" />
+                </RelativeLayout>
+
             </LinearLayout>
         </com.google.android.material.appbar.CollapsingToolbarLayout>
     </com.google.android.material.appbar.AppBarLayout>

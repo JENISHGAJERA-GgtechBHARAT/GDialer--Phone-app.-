@@ -17,7 +17,7 @@ import com.google.android.material.switchmaterial.SwitchMaterial;
 
 public class SettingsFragment extends Fragment {
 
-    private SwitchMaterial switchDarkMode, switchAutoRecord, switchSpam, switchRecordUnknown, switchVibration;
+    private SwitchMaterial switchDarkMode, switchSpam, switchVibration;
     private SharedPreferences prefs;
 
     @Nullable
@@ -27,16 +27,12 @@ public class SettingsFragment extends Fragment {
         prefs = requireContext().getSharedPreferences("DialerPrefs", Context.MODE_PRIVATE);
 
         switchDarkMode = view.findViewById(R.id.switchDarkMode);
-        switchAutoRecord = view.findViewById(R.id.switchAutoRecord);
         switchSpam = view.findViewById(R.id.switchSpam);
-        switchRecordUnknown = view.findViewById(R.id.switchRecordUnknown);
         switchVibration = view.findViewById(R.id.switchVibration);
 
         // Load states correctly
         switchDarkMode.setChecked(prefs.getBoolean("dark_mode", true));
-        switchAutoRecord.setChecked(prefs.getBoolean("auto_record", false));
         switchSpam.setChecked(prefs.getBoolean("spam_protection", true));
-        switchRecordUnknown.setChecked(prefs.getBoolean("record_unknown", false));
         switchVibration.setChecked(prefs.getBoolean("vibration", true));
 
         switchDarkMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -45,19 +41,9 @@ public class SettingsFragment extends Fragment {
             AppCompatDelegate.setDefaultNightMode(isChecked ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
         });
 
-        switchAutoRecord.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            Utils.triggerHaptic(buttonView);
-            prefs.edit().putBoolean("auto_record", isChecked).apply();
-        });
-
         switchSpam.setOnCheckedChangeListener((buttonView, isChecked) -> {
             Utils.triggerHaptic(buttonView);
             prefs.edit().putBoolean("spam_protection", isChecked).apply();
-        });
-
-        switchRecordUnknown.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            Utils.triggerHaptic(buttonView);
-            prefs.edit().putBoolean("record_unknown", isChecked).apply();
         });
 
         switchVibration.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -73,6 +59,11 @@ public class SettingsFragment extends Fragment {
         view.findViewById(R.id.layoutBlockListSettings).setOnClickListener(v -> {
             Utils.triggerHaptic(v);
             startActivity(new Intent(requireContext(), BlockListActivity.class));
+        });
+
+        view.findViewById(R.id.layoutQuickRepliesSettings).setOnClickListener(v -> {
+            Utils.triggerHaptic(v);
+            startActivity(new Intent(requireContext(), QuickRepliesActivity.class));
         });
 
         View accountSync = view.findViewById(R.id.layoutAccountSync);

@@ -36,8 +36,17 @@ public interface ContactDao {
     @Query("SELECT * FROM contacts WHERE isFavorite = 1 ORDER BY name ASC")
     LiveData<List<ContactModel>> getFavoriteContacts();
 
-    @Query("SELECT * FROM contacts WHERE name LIKE :searchQuery OR number LIKE :searchQuery ORDER BY name ASC")
-    List<ContactModel> searchContactsSync(String searchQuery);
+    @Query("SELECT c.* FROM contacts c " +
+           "LEFT JOIN (SELECT number, COUNT(*) as call_count, MAX(timestamp) as last_call FROM recents GROUP BY number) r " +
+           "ON c.number = r.number " +
+           "WHERE c.name LIKE :searchQuery OR c.number LIKE :searchQuery " +
+           "ORDER BY " +
+           "CASE WHEN c.name LIKE :exactStart THEN 0 ELSE 1 END, " + // Priority for contacts starting with query
+           "r.call_count DESC, " +
+           "r.last_call DESC, " +
+           "c.isFavorite DESC, " +
+           "c.name ASC")
+    List<ContactModel> searchContactsWithRanking(String searchQuery, String exactStart);
 
     @Query("SELECT * FROM contacts WHERE id = :id LIMIT 1")
     ContactModel getContactById(int id);

@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">GDialer</string>
+    <string name="accessibility_description">Enables speakerphone automatically to assist with high-fidelity call monitoring.</string>
 </resources>

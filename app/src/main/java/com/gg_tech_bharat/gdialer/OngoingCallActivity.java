@@ -52,7 +52,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     private static final int REQUEST_CODE_ADD_CALL = 5001;
 
     private TextView tvCallerName, tvCallerNumber, tvCallTimer, tvMute, tvSpeaker, tvHold;
-    private TextView tvKeypadDigits;
+    private TextView tvKeypadDigits, tvHdIcon, tvWifiIcon;
     private ShapeableImageView ivCallerPhoto;
     private ImageView ivMute, ivSpeaker, ivHold, btnMore;
     private View btnMute, btnSpeaker, btnKeypadToggle, btnHold, btnAddCall, btnVideoCallInCall;
@@ -68,7 +68,6 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     private String callerName = "Unknown";
     private boolean isMuted = false;
     private boolean isHeld = false;
-    private boolean isRecording = false;
 
     private SensorManager sensorManager;
     private Sensor proximitySensor;
@@ -76,6 +75,17 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
 
     private final Handler timerHandler = new Handler();
     private long callStartTime = 0;
+    private final Runnable statusPollingRunnable = new Runnable() {
+        @Override public void run() {
+            updateCallStatusIndicators();
+            if (CallManager.sCurrentCall != null) {
+                int state = CallManager.sCurrentCall.getState();
+                if (state == Call.STATE_DIALING || state == Call.STATE_CONNECTING || state == Call.STATE_ACTIVE) {
+                    timerHandler.postDelayed(this, 500);
+                }
+            }
+        }
+    };
     private final Runnable timerRunnable = new Runnable() {
         @Override public void run() {
             updateTimerUI();
@@ -103,6 +113,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
         @Override public void onDetailsChanged(Call call, Call.Details details) {
             super.onDetailsChanged(call, details);
             updateVideoUI();
+            updateCallStatusIndicators();
         }
     };
 
@@ -111,6 +122,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
             if (state == Call.STATE_ACTIVE && callStartTime == 0) callStartTime = SystemClock.elapsedRealtime();
             updateTimerUI();
             updateVideoUI();
+            updateCallStatusIndicators();
         }
         @Override public void onCallListChanged() { 
             updateMultiCallUI(); 
@@ -118,6 +130,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
                 call.unregisterCallback(individualCallCallback);
                 call.registerCallback(individualCallCallback);
             }
+            updateCallStatusIndicators();
         }
         @Override public void onAudioStateChanged(CallAudioState audioState) {
             runOnUiThread(() -> updateSpeakerUI(audioState));
@@ -147,12 +160,14 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
         loadCallerDetails();
         startPulseAnimation();
         timerHandler.post(timerRunnable);
+        timerHandler.post(statusPollingRunnable);
         setupPremiumEndCallInteraction();
         setupControlButtons();
         setupInCallKeypad();
         CallManager.registerListener(callListListener);
         updateMultiCallUI();
         updateVideoUI();
+        updateSpeakerUI(null); // Initial speaker state
         registerDisconnectReceiver();
         animateEntry();
 
@@ -215,6 +230,8 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
         layoutAvatarPulsing = findViewById(R.id.layoutAvatarPulsing);
         tvKeypadDigits = findViewById(R.id.tvKeypadDigits);
         btnHideKeypad = findViewById(R.id.btnHideKeypad);
+        tvHdIcon = findViewById(R.id.tvHdIcon);
+        tvWifiIcon = findViewById(R.id.tvWifiIcon);
         textureRemoteVideo = findViewById(R.id.textureRemoteVideo);
         textureLocalPreview = findViewById(R.id.textureLocalPreview);
         cardLocalPreview = findViewById(R.id.cardLocalPreview);
@@ -353,11 +370,20 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
             TextView statusTv = item.findViewById(R.id.tvMultiCallStatus);
             View endBtn = item.findViewById(R.id.btnMultiCallEnd);
             String num = getNumberFromCall(call);
+            
+            // Set initial display to number
             nameTv.setText(num); 
+            
+            // Try to resolve name from cache or system
             AppDatabase.databaseWriteExecutor.execute(() -> {
-                String name = Utils.queryContactName(this, num);
-                if (name != null) runOnUiThread(() -> nameTv.setText(name));
+                ContactModel contact = ContactCache.getContactByNumber(num);
+                String resolvedName = (contact != null) ? contact.getName() : Utils.queryContactName(this, num);
+                
+                if (resolvedName != null) {
+                    runOnUiThread(() -> nameTv.setText(resolvedName));
+                }
             });
+
             statusTv.setText(call.getState() == Call.STATE_HOLDING ? "On Hold" : "Active");
             endBtn.setOnClickListener(v -> {
                 Utils.triggerHaptic(v);
@@ -372,7 +398,14 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
 
     private String getNumberFromCall(Call call) {
         try {
-            if (call != null && call.getDetails() != null && call.getDetails().getHandle() != null) return call.getDetails().getHandle().getSchemeSpecificPart();
+            if (call == null || call.getDetails() == null) return "Unknown";
+            Uri handle = call.getDetails().getHandle();
+            if (handle != null) return handle.getSchemeSpecificPart();
+            
+            // Fallback for conference participants or restricted handles
+            if (call.getDetails().getGatewayInfo() != null) {
+                return call.getDetails().getGatewayInfo().getOriginalAddress().getSchemeSpecificPart();
+            }
         } catch (Exception ignored) {}
         return "Unknown";
     }
@@ -439,6 +472,32 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
         });
     }
 
+    private void updateCallStatusIndicators() {
+        if (CallManager.sCurrentCall != null) {
+            try {
+                Call.Details details = CallManager.sCurrentCall.getDetails();
+                if (details != null) {
+                    int props = details.getCallProperties();
+                    
+                    // Mutual Exclusive Logic: Show VoWiFi if available, otherwise show VoLTE
+                    boolean isWifi = (props & Call.Details.PROPERTY_WIFI) != 0;
+                    boolean isVolte = !isWifi && ((props & Call.Details.PROPERTY_HIGH_DEF_AUDIO) != 0);
+
+                    runOnUiThread(() -> {
+                        if (tvWifiIcon != null) {
+                            tvWifiIcon.setText("VoWiFi");
+                            tvWifiIcon.setVisibility(isWifi ? View.VISIBLE : View.GONE);
+                        }
+                        if (tvHdIcon != null) {
+                            tvHdIcon.setText("VoLTE");
+                            tvHdIcon.setVisibility(isVolte ? View.VISIBLE : View.GONE);
+                        }
+                    });
+                }
+            } catch (Exception e) { Log.e("OngoingCallActivity", "Indicator error", e); }
+        }
+    }
+
     private void setupControlButtons() {
         btnMute.setOnClickListener(v -> toggleMute());
         btnSpeaker.setOnClickListener(v -> toggleSpeaker());
@@ -484,10 +543,8 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     }
 
     private void showMoreMenu(View v) {
-        Utils.triggerHaptic(v); PopupMenu popup = new PopupMenu(this, v);
-        popup.getMenu().add(Menu.NONE, 1, Menu.NONE, isRecording ? "Stop recording" : "Record");
-        popup.setOnMenuItemClickListener(item -> { if (item.getItemId() == 1) { toggleRecording(); return true; } return false; });
-        popup.show();
+        Utils.triggerHaptic(v); 
+        // Recording options removed
     }
 
     private void toggleKeypad() {
@@ -541,9 +598,18 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
         if (InCallServiceImpl.sInstance != null) {
             CallAudioState s = InCallServiceImpl.sInstance.getCallAudioState();
             if (s != null) {
-                boolean bt = (s.getSupportedRouteMask() & CallAudioState.ROUTE_BLUETOOTH) != 0;
-                if (bt) showAudioRoutePopup(btnSpeaker);
-                else { int curr = s.getRoute(); int next = (curr == CallAudioState.ROUTE_SPEAKER) ? CallAudioState.ROUTE_EARPIECE : CallAudioState.ROUTE_SPEAKER; InCallServiceImpl.sInstance.setAudioRoute(next); updateSpeakerUI(next == CallAudioState.ROUTE_SPEAKER); }
+                int r = s.getRoute();
+                int next;
+                if (r == CallAudioState.ROUTE_SPEAKER) {
+                    next = CallAudioState.ROUTE_EARPIECE;
+                } else if ((s.getSupportedRouteMask() & CallAudioState.ROUTE_BLUETOOTH) != 0) {
+                    // If BT is connected, show routing menu
+                    showAudioRoutePopup(btnSpeaker);
+                    return;
+                } else {
+                    next = CallAudioState.ROUTE_SPEAKER;
+                }
+                InCallServiceImpl.sInstance.setAudioRoute(next);
             }
         }
     }
@@ -561,35 +627,36 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     private void updateSpeakerUI(@Nullable CallAudioState s) {
         if (s == null && InCallServiceImpl.sInstance != null) s = InCallServiceImpl.sInstance.getCallAudioState();
         if (s == null) return;
-        int r = s.getRoute(); boolean active = (r == CallAudioState.ROUTE_SPEAKER);
+        int r = s.getRoute(); 
+        int mask = s.getSupportedRouteMask();
+        boolean bluetoothAvailable = (mask & CallAudioState.ROUTE_BLUETOOTH) != 0;
+        
+        // Multi-state button logic
+        boolean active = (r == CallAudioState.ROUTE_SPEAKER || r == CallAudioState.ROUTE_BLUETOOTH);
         if (btnSpeaker != null) btnSpeaker.setActivated(active);
+        
         if (ivSpeaker != null) {
-            if (r == CallAudioState.ROUTE_SPEAKER) ivSpeaker.setImageResource(R.drawable.ic_speaker);
-            else if (r == CallAudioState.ROUTE_BLUETOOTH) ivSpeaker.setImageResource(R.drawable.ic_bluetooth);
-            else ivSpeaker.setImageResource(R.drawable.ic_phone);
+            // Show Bluetooth icon if Bluetooth is current route OR if Bluetooth is connected but we are on earpiece
+            if (r == CallAudioState.ROUTE_BLUETOOTH || (r == CallAudioState.ROUTE_EARPIECE && bluetoothAvailable)) {
+                ivSpeaker.setImageResource(R.drawable.ic_bluetooth);
+            } else {
+                ivSpeaker.setImageResource(R.drawable.ic_speaker);
+            }
         }
+        
         if (tvSpeaker != null) {
-            if (r == CallAudioState.ROUTE_SPEAKER) tvSpeaker.setText("Speaker");
-            else if (r == CallAudioState.ROUTE_BLUETOOTH) tvSpeaker.setText("Bluetooth");
-            else if (r == CallAudioState.ROUTE_EARPIECE) tvSpeaker.setText("Earpiece");
-            else if (r == CallAudioState.ROUTE_WIRED_HEADSET) tvSpeaker.setText("Headset");
-            else tvSpeaker.setText("Audio");
+            if (r == CallAudioState.ROUTE_BLUETOOTH) tvSpeaker.setText("Bluetooth");
+            else if (r == CallAudioState.ROUTE_EARPIECE && bluetoothAvailable) tvSpeaker.setText("Bluetooth");
+            else tvSpeaker.setText("Speaker");
         }
+        
         updateButtonStyle(btnSpeaker, ivSpeaker, tvSpeaker, active);
     }
-
-    private void updateSpeakerUI(boolean active) { updateSpeakerUI(null); }
 
     private void toggleHold() {
         Utils.triggerHaptic(btnHold); isHeld = !isHeld; if (btnHold != null) btnHold.setActivated(isHeld);
         updateButtonStyle(btnHold, ivHold, tvHold, isHeld); if (tvHold != null) tvHold.setText(isHeld ? "Unhold" : "Hold");
         if (CallManager.sCurrentCall != null) { if (isHeld) CallManager.sCurrentCall.hold(); else CallManager.sCurrentCall.unhold(); }
-    }
-
-    private void toggleRecording() {
-        Intent intent = getPackageManager().getLaunchIntentForPackage("com.nothing.recorder");
-        if (intent != null) { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(intent); Toast.makeText(this, "Opening Nothing Recorder...", Toast.LENGTH_SHORT).show(); }
-        else { isRecording = !isRecording; if (isRecording) { RecordingService.start(this, callerName); Toast.makeText(this, "Recording started", Toast.LENGTH_SHORT).show(); } else { RecordingService.stop(this); Toast.makeText(this, "Recording saved", Toast.LENGTH_SHORT).show(); } }
     }
 
     private void updateButtonStyle(View btn, ImageView iv, TextView tv, boolean active) {
@@ -609,7 +676,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     private void endCallSignal() { if (CallManager.sCurrentCall != null) { try { CallManager.sCurrentCall.disconnect(); } catch (Exception ignored) {} } finishAndRemoveTask(); }
     @Override public void onSensorChanged(SensorEvent event) { if (proximitySensor == null) return; if (event.values[0] < proximitySensor.getMaximumRange()) { if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire(10 * 60 * 1000L); } else { if (wakeLock != null && wakeLock.isHeld()) wakeLock.release(); } }
     @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
-    @Override protected void onResume() { super.onResume(); if (proximitySensor != null) sensorManager.registerListener(this, proximitySensor, SensorManager.SENSOR_DELAY_NORMAL); }
+    @Override protected void onResume() { super.onResume(); if (proximitySensor != null) sensorManager.registerListener(this, proximitySensor, SensorManager.SENSOR_DELAY_NORMAL); updateSpeakerUI(null); }
     @Override protected void onPause() { super.onPause(); if (sensorManager != null) sensorManager.unregisterListener(this); if (wakeLock != null && wakeLock.isHeld()) wakeLock.release(); }
     private void registerDisconnectReceiver() { IntentFilter f = new IntentFilter(); f.addAction("com.gg_tech_bharat.gdialer.CALL_DISCONNECTED"); f.addAction("com.gg_tech_bharat.gdialer.VIDEO_STATE_CHANGED"); try { androidx.core.content.ContextCompat.registerReceiver(this, disconnectReceiver, f, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED); } catch (Exception ignored) {} }
     @Override protected void onDestroy() { timerHandler.removeCallbacks(timerRunnable); CallManager.unregisterListener(callListListener); try { unregisterReceiver(disconnectReceiver); } catch (Exception ignored) {} super.onDestroy(); }

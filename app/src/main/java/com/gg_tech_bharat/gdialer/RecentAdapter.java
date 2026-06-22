@@ -2,7 +2,6 @@ package com.gg_tech_bharat.gdialer;
 
 import android.content.Context;
 import android.content.Intent;
-import android.media.MediaPlayer;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -171,14 +170,20 @@ public class RecentAdapter extends RecyclerView.Adapter<RecentAdapter.RecentView
         holder.ivTypeIcon.setImageResource(callIcon);
         holder.ivTypeIcon.setColorFilter(androidx.core.content.ContextCompat.getColor(context, callColor));
 
-        holder.ivRecordingBadge.setVisibility(recent.isRecorded() ? View.VISIBLE : View.GONE);
-        holder.ivRecordingBadge.setOnClickListener(v -> { Utils.triggerHaptic(v); playRecording(recent.getRecordingPath()); });
+        holder.ivRecordingBadge.setVisibility(View.GONE);
         
         holder.cbSelect.setVisibility(isSelectionMode ? View.VISIBLE : View.GONE);
         holder.cbSelect.setChecked(selectedRecentIds.contains(recent.getId()));
 
         boolean isExpanded = !isSelectionMode && (position == expandedPosition);
         holder.layoutActions.setVisibility(isExpanded ? View.VISIBLE : View.GONE);
+
+        // Show phone number instead of metadata when expanded
+        if (isExpanded && currentName != null && !currentName.isEmpty()) {
+            holder.tvDetails.setText(number);
+        } else {
+            holder.tvDetails.setText(String.format("%s • %s", Utils.formatTimestamp(recent.getTimestamp()), Utils.formatDuration(recent.getDuration())));
+        }
 
         holder.itemView.setOnClickListener(v -> {
             Utils.triggerHaptic(v);
@@ -206,26 +211,16 @@ public class RecentAdapter extends RecyclerView.Adapter<RecentAdapter.RecentView
             Utils.triggerHaptic(v); 
             Utils.makePhoneCall(context, recent.getNumber(), null, android.telecom.VideoProfile.STATE_BIDIRECTIONAL); 
         });
-        holder.btnExpandInfo.setOnClickListener(v -> { Utils.triggerHaptic(v); context.startActivity(new Intent(context, ContactDetailsActivity.class).putExtra("EXTRA_NUMBER", recent.getNumber())); });
-    }
-
-    private String querySystemContactPhotoUri(String number) {
-        if (number == null || number.isEmpty()) return null;
-        try {
-            android.net.Uri uri = android.net.Uri.withAppendedPath(android.provider.ContactsContract.PhoneLookup.CONTENT_FILTER_URI, android.net.Uri.encode(number));
-            String[] projection = new String[]{android.provider.ContactsContract.PhoneLookup.PHOTO_URI};
-            try (android.database.Cursor cursor = context.getContentResolver().query(uri, projection, null, null, null)) {
-                if (cursor != null && cursor.moveToFirst()) return cursor.getString(0);
+        holder.btnExpandInfo.setOnClickListener(v -> { 
+            Utils.triggerHaptic(v); 
+            Intent intent = new Intent(context, ContactDetailsActivity.class);
+            intent.putExtra("EXTRA_NUMBER", recent.getNumber());
+            // Pre-resolve name to avoid "Unknown" flicker if possible
+            if (recent.getName() != null && !recent.getName().isEmpty()) {
+                intent.putExtra("EXTRA_NAME", recent.getName());
             }
-        } catch (Exception ignored) {}
-        return null;
-    }
-
-    private void playRecording(String path) {
-        if (path == null || path.isEmpty()) return;
-        File f = new File(path);
-        if (!f.exists()) { Toast.makeText(context, "File not found", Toast.LENGTH_SHORT).show(); return; }
-        try { MediaPlayer mp = new MediaPlayer(); mp.setDataSource(path); mp.prepare(); mp.start(); } catch (Exception ignored) {}
+            context.startActivity(intent); 
+        });
     }
 
     @Override public int getItemCount() { return filteredList.size(); }

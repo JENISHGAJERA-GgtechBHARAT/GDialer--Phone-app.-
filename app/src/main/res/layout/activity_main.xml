@@ -67,6 +67,19 @@
             android:focusable="true"
             android:background="?attr/selectableItemBackground" />
 
+        <TextView
+            android:id="@+id/tabVoicemail"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Voicemail"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground" />
+
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -39,6 +39,9 @@ public class RecentsFragment extends Fragment {
     private TextView tvSelectedCount, tvSelectAllText;
     private OnBackPressedCallback onBackPressedCallback;
     private EditText etSearch;
+    private android.widget.ImageButton btnClearSearch;
+    private View layoutRecentSearchHeader;
+    private TextView btnCloseAllSearch;
 
     private List<RecentModel> lastEmittedRecents = new ArrayList<>();
 
@@ -57,6 +60,9 @@ public class RecentsFragment extends Fragment {
         RecyclerView rvRecents = view.findViewById(R.id.rvRecents);
         ImageButton btnMenuSettings = view.findViewById(R.id.btnMenuSettings);
         etSearch = view.findViewById(R.id.etSearchRecents);
+        btnClearSearch = view.findViewById(R.id.btnClearSearch);
+        layoutRecentSearchHeader = view.findViewById(R.id.layoutRecentSearchHeader);
+        btnCloseAllSearch = view.findViewById(R.id.btnCloseAllSearch);
 
         layoutSelectionBar = view.findViewById(R.id.layoutSelectionBar);
         layoutSelectAll = view.findViewById(R.id.layoutSelectAll);
@@ -113,11 +119,57 @@ public class RecentsFragment extends Fragment {
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
                 if (r != null) h.removeCallbacks(r);
                 String query = s.toString();
-                r = () -> searchContactsAndRecents(query);
-                h.postDelayed(r, 250);
+                if (btnClearSearch != null) btnClearSearch.setVisibility(query.isEmpty() ? View.GONE : View.VISIBLE);
+                
+                if (layoutRecentSearchHeader != null) {
+                    layoutRecentSearchHeader.setVisibility(query.isEmpty() && etSearch.hasFocus() ? View.VISIBLE : View.GONE);
+                }
+
+                r = () -> {
+                    if (!query.isEmpty()) {
+                        saveRecentSearch(query);
+                    }
+                    searchContactsAndRecents(query);
+                };
+                h.postDelayed(r, 400);
             }
             @Override public void afterTextChanged(Editable s) {}
         });
+
+        etSearch.setOnFocusChangeListener((v, hasFocus) -> {
+            if (layoutRecentSearchHeader != null) {
+                layoutRecentSearchHeader.setVisibility(hasFocus && etSearch.getText().toString().isEmpty() ? View.VISIBLE : View.GONE);
+            }
+            if (hasFocus && etSearch.getText().toString().isEmpty()) {
+                loadRecentSearches();
+            }
+        });
+
+        if (btnCloseAllSearch != null) {
+            btnCloseAllSearch.setOnClickListener(v -> {
+                Utils.triggerHaptic(v);
+                AppDatabase.databaseWriteExecutor.execute(() -> {
+                    database.recentSearchDao().clearAll();
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            view.findViewById(R.id.rvRecents).animate().alpha(0f).setDuration(300).withEndAction(() -> {
+                                adapter.setRecents(new ArrayList<>());
+                                view.findViewById(R.id.rvRecents).setAlpha(1f);
+                                if (layoutRecentSearchHeader != null) layoutRecentSearchHeader.setVisibility(View.GONE);
+                                com.google.android.material.snackbar.Snackbar.make(view, "Recent searches cleared", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
+                            }).start();
+                        });
+                    }
+                });
+            });
+        }
+
+        if (btnClearSearch != null) {
+            btnClearSearch.setOnClickListener(v -> {
+                Utils.triggerHaptic(v);
+                etSearch.setText("");
+            });
+        }
 
         // 1. Observe Recents table
         database.recentDao().getAllRecents().observe(getViewLifecycleOwner(), recents -> {
@@ -162,6 +214,32 @@ public class RecentsFragment extends Fragment {
         return view;
     }
 
+    private void saveRecentSearch(String query) {
+        if (query.length() < 2) return;
+        AppDatabase.databaseWriteExecutor.execute(() -> {
+            database.recentSearchDao().insert(new RecentSearch(query, System.currentTimeMillis()));
+        });
+    }
+
+    private void loadRecentSearches() {
+        database.recentSearchDao().getRecentSearches().observe(getViewLifecycleOwner(), searches -> {
+            if (searches == null || !etSearch.getText().toString().isEmpty() || !etSearch.hasFocus()) return;
+            List<RecentModel> results = new ArrayList<>();
+            for (RecentSearch s : searches) {
+                String query = s.getQuery();
+                
+                // Try to resolve the contact name for the search query
+                ContactModel contact = ContactCache.getContactByNumber(query);
+                String displayName = (contact != null) ? contact.getName() : query;
+
+                RecentModel r = new RecentModel(query, displayName, s.getTimestamp(), 0, 0, false, "");
+                r.setId(-Math.abs(query.hashCode()));
+                results.add(r);
+            }
+            adapter.setRecents(results);
+        });
+    }
+
     private void processAndDisplayRecents() {
         if (!etSearch.getText().toString().isEmpty()) return;
         final List<RecentModel> dataToProcess = new ArrayList<>(lastEmittedRecents);
@@ -204,7 +282,7 @@ public class RecentsFragment extends Fragment {
         }
         
         AppDatabase.databaseWriteExecutor.execute(() -> {
-            List<ContactModel> contacts = database.contactDao().searchContactsSync("%" + query + "%");
+            List<ContactModel> contacts = database.contactDao().searchContactsWithRanking("%" + query + "%", query + "%");
             List<RecentModel> results = new ArrayList<>();
             for (ContactModel c : contacts) {
                 RecentModel r = new RecentModel(c.getNumber(), c.getName(), 0, 0, 0, false, "");
