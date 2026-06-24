@@ -610,6 +610,7 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
         boolean isLocked = (km != null) && km.isKeyguardLocked();
 
         if (needUnlockFirst && isLocked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
             km.requestDismissKeyguard(this, new android.app.KeyguardManager.KeyguardDismissCallback() {
                 @Override
                 public void onDismissSucceeded() {
