@@ -133,7 +133,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void highlightTab(TextView t) {
-        t.setTextColor(getResources().getColor(R.color.white));
+        t.setTextColor(getResources().getColor(R.color.text_primary));
         t.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
     }
 
