@@ -158,7 +158,7 @@
         android:layout_gravity="bottom|end"
         android:src="@drawable/ic_keypad"
         app:backgroundTint="@color/accent_green"
-        app:tint="@color/black"
+        app:tint="@color/white"
         app:elevation="8dp" />
 
     <LinearLayout

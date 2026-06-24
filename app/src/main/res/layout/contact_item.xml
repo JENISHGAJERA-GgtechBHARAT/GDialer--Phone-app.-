@@ -95,7 +95,7 @@
             android:background="@drawable/green_circle"
             android:src="@drawable/ic_phone"
             android:padding="12dp"
-            app:tint="@color/black" />
+            app:tint="@color/white" />
 
         <!-- Message Action -->
         <ImageButton
@@ -117,7 +117,7 @@
             android:background="@drawable/green_circle"
             android:src="@drawable/ic_video_call"
             android:padding="12dp"
-            app:tint="@color/black" />
+            app:tint="@color/white" />
 
         <!-- Details Info Action -->
         <ImageButton

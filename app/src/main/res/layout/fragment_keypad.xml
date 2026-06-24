@@ -288,7 +288,7 @@
                 android:layout_height="64dp"
                 android:background="@drawable/green_circle"
                 android:src="@drawable/ic_phone"
-                app:tint="@color/black" />
+                app:tint="@color/white" />
 
             <!-- Secondary Call Button (SIM 2) - Hidden by default -->
             <ImageButton
@@ -299,7 +299,7 @@
                 android:background="@drawable/green_circle"
                 android:src="@drawable/ic_phone"
                 android:visibility="gone"
-                app:tint="@color/black" />
+                app:tint="@color/white" />
         </LinearLayout>
 
         <!-- Right: Backspace (visible only when dialing) -->

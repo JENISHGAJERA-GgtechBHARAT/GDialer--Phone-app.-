@@ -126,7 +126,7 @@
                 android:layout_height="28dp"
                 android:layout_gravity="center"
                 android:src="@drawable/ic_phone"
-                app:tint="@color/black" />
+                app:tint="@color/white" />
         </FrameLayout>
     </LinearLayout>
 

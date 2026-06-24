@@ -25,8 +25,8 @@
     <color name="call_outgoing">#000000</color>
     <color name="call_missed">#FF3B30</color>
 
-    <color name="accent_green">#000000</color>
-    <color name="accent_red">#000000</color>
+    <color name="accent_green">#34C759</color>
+    <color name="accent_red">#FF3B30</color>
     
     <color name="text_primary">#000000</color>
     <color name="text_secondary">#777777</color>

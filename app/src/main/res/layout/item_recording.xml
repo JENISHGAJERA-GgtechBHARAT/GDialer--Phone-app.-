@@ -162,7 +162,7 @@
                     android:background="@drawable/green_circle"
                     android:padding="12dp"
                     android:src="@drawable/ic_phone"
-                    app:tint="@color/black" />
+                    app:tint="@color/white" />
 
                 <View android:layout_width="24dp" android:layout_height="1dp" />
 

@@ -92,7 +92,7 @@
                     <!-- Phone Call -->
                     <LinearLayout style="@style/ContactDetailActionContainer" android:id="@+id/layoutCall">
                         <FrameLayout style="@style/ContactDetailActionIconBg" android:background="@drawable/green_circle">
-                            <ImageView style="@style/ContactDetailActionIcon" android:src="@drawable/ic_phone" app:tint="@color/black" />
+                            <ImageView style="@style/ContactDetailActionIcon" android:src="@drawable/ic_phone" app:tint="@color/white" />
                         </FrameLayout>
                         <TextView style="@style/ContactDetailActionText" android:text="Call" />
                     </LinearLayout>
