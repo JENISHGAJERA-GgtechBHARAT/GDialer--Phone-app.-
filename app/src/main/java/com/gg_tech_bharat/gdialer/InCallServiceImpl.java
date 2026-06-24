@@ -412,7 +412,7 @@ public class InCallServiceImpl extends InCallService {
                             .setFullScreenIntent(fullScreenPi, true)
                             .setOngoing(true)
                             .setCategory(NotificationCompat.CATEGORY_CALL)
-                            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
                             .setAutoCancel(false)
                             .setPriority(NotificationCompat.PRIORITY_MAX);
 
