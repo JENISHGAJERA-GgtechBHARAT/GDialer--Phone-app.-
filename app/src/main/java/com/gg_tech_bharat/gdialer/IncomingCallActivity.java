@@ -127,6 +127,16 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
         try {
             androidx.core.content.ContextCompat.registerReceiver(this, disconnectReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED);
         } catch (Exception ignored) {}
+
+        if (getIntent().getBooleanExtra("TRIGGER_UNLOCK_AND_ANSWER", false)) {
+            int videoState = getIntent().getIntExtra("VIDEO_STATE", VideoProfile.STATE_AUDIO_ONLY);
+            needUnlockFirst = true;
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                if (!isFinishing() && !isDestroyed()) {
+                    answerCall(videoState);
+                }
+            }, 300);
+        }
     }
 
     private void finishWithTransition() {
@@ -157,6 +167,13 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
         btnHoldAndAnswer = findViewById(R.id.btnHoldAndAnswer);
         btnMergeAndAnswer = findViewById(R.id.btnMergeAndAnswer);
         btnQuickMessageWaiting = findViewById(R.id.btnQuickMessageWaiting);
+
+        if (layoutAccept != null) {
+            layoutAccept.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#34C759")));
+        }
+        if (layoutReject != null) {
+            layoutReject.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#FF3B30")));
+        }
     }
 
     private void setupIntentData() {
@@ -311,6 +328,16 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
         if (tvCallerNumber != null) tvCallerNumber.setText(phoneNumber);
         loadCallerDetails();
         updateUIForCallWaiting();
+
+        if (intent.getBooleanExtra("TRIGGER_UNLOCK_AND_ANSWER", false)) {
+            int videoState = intent.getIntExtra("VIDEO_STATE", VideoProfile.STATE_AUDIO_ONLY);
+            needUnlockFirst = true;
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                if (!isFinishing() && !isDestroyed()) {
+                    answerCall(videoState);
+                }
+            }, 300);
+        }
     }
 
     private void loadCallerDetails() {

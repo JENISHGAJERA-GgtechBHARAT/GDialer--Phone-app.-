@@ -135,14 +135,7 @@ public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ContactV
         holder.tvName.setText(contact.getName());
         holder.tvNumber.setText(contact.getNumber());
 
-        com.bumptech.glide.Glide.with(context)
-                .load(contact.getPhotoUri())
-                .placeholder(R.drawable.ic_contacts)
-                .error(R.drawable.ic_contacts)
-                .override(100, 100)
-                .circleCrop()
-                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                .into(holder.ivAvatar);
+        Utils.loadContactPhoto(context, contact.getPhotoUri(), holder.ivAvatar);
 
         holder.cbSelect.setVisibility(isSelectionMode ? View.VISIBLE : View.GONE);
         holder.cbSelect.setChecked(selectedContactIds.contains(contact.getId()));
@@ -174,8 +167,22 @@ public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ContactV
             return false;
         });
 
+        // Set hardcoded background tints to bypass Material3/Monet auto-tinting
+        holder.btnExpandCall.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#34C759")));
+        holder.btnExpandMessage.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#3498DB")));
+        if (holder.btnExpandVideo != null) {
+            holder.btnExpandVideo.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#34C759")));
+        }
+        holder.btnExpandInfo.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#8E8E93")));
+
         holder.btnExpandCall.setOnClickListener(v -> { Utils.triggerHaptic(v); Utils.makePhoneCall(context, contact.getNumber()); });
         holder.btnExpandMessage.setOnClickListener(v -> { Utils.triggerHaptic(v); Utils.sendSMS(context, contact.getNumber(), ""); });
+        if (holder.btnExpandVideo != null) {
+            holder.btnExpandVideo.setOnClickListener(v -> {
+                Utils.triggerHaptic(v);
+                Utils.makePhoneCall(context, contact.getNumber(), null, android.telecom.VideoProfile.STATE_BIDIRECTIONAL);
+            });
+        }
         holder.btnExpandInfo.setOnClickListener(v -> { Utils.triggerHaptic(v); context.startActivity(new Intent(context, ContactDetailsActivity.class).putExtra("EXTRA_NUMBER", contact.getNumber())); });
     }
 
@@ -190,7 +197,7 @@ public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ContactV
         ShapeableImageView ivAvatar;
         CheckBox cbSelect;
         View layoutActions;
-        ImageButton btnExpandCall, btnExpandMessage, btnExpandInfo;
+        ImageButton btnExpandCall, btnExpandMessage, btnExpandVideo, btnExpandInfo;
         public ContactViewHolder(@NonNull View itemView) {
             super(itemView);
             tvName = itemView.findViewById(R.id.tvContactName);
@@ -200,6 +207,7 @@ public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ContactV
             layoutActions = itemView.findViewById(R.id.layoutContactExpandableActions);
             btnExpandCall = itemView.findViewById(R.id.btnExpandCall);
             btnExpandMessage = itemView.findViewById(R.id.btnExpandMessage);
+            btnExpandVideo = itemView.findViewById(R.id.btnExpandVideo);
             btnExpandInfo = itemView.findViewById(R.id.btnExpandInfo);
         }
     }

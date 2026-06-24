@@ -205,6 +205,12 @@ public class RecentAdapter extends RecyclerView.Adapter<RecentAdapter.RecentView
             return false;
         });
 
+        // Set hardcoded background tints to bypass Material3/Monet auto-tinting
+        holder.btnExpandCall.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#34C759")));
+        holder.btnExpandMessage.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#3498DB")));
+        holder.btnExpandVideo.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#34C759")));
+        holder.btnExpandInfo.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#8E8E93")));
+
         holder.btnExpandCall.setOnClickListener(v -> { Utils.triggerHaptic(v); Utils.makePhoneCall(context, recent.getNumber()); });
         holder.btnExpandMessage.setOnClickListener(v -> { Utils.triggerHaptic(v); Utils.sendSMS(context, recent.getNumber(), ""); });
         holder.btnExpandVideo.setOnClickListener(v -> { 

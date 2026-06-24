@@ -61,6 +61,13 @@ public class KeypadFragment extends Fragment implements View.OnClickListener {
         btnKeypadMenu = view.findViewById(R.id.btnKeypadMenu);
         rvSuggestions = view.findViewById(R.id.rvT9Suggestions);
 
+        if (btnCall != null) {
+            btnCall.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#34C759")));
+        }
+        if (btnCallSim2 != null) {
+            btnCallSim2.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#34C759")));
+        }
+
         setupSimButtons();
 
         rvSuggestions.setLayoutManager(new LinearLayoutManager(requireContext()));

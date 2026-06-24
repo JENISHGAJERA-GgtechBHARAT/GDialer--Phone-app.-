@@ -38,6 +38,10 @@ public class BlockListActivity extends AppCompatActivity {
         btnAddBlock = findViewById(R.id.btnAddBlock);
         rvBlockedList = findViewById(R.id.rvBlockedList);
 
+        if (btnAddBlock != null) {
+            btnAddBlock.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#34C759")));
+        }
+
         rvBlockedList.setLayoutManager(new LinearLayoutManager(this));
         adapter = new BlockedAdapter();
         rvBlockedList.setAdapter(adapter);

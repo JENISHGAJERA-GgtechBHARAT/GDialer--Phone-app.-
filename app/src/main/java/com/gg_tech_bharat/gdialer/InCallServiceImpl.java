@@ -53,12 +53,56 @@ public class InCallServiceImpl extends InCallService {
                         else if (CallManager.sCurrentCall != null) CallManager.sCurrentCall.disconnect();
                         break;
                     case ACTION_ANSWER_CALL:
-                        int videoState = intent.getIntExtra("VIDEO_STATE", VideoProfile.STATE_AUDIO_ONLY);
-                        Call ringingAnswer = CallManager.getRingingCall();
-                        if (ringingAnswer != null) {
-                            ringingAnswer.answer(videoState);
-                        } else if (CallManager.sCurrentCall != null && CallManager.sCurrentCall.getState() == Call.STATE_RINGING) {
-                            CallManager.sCurrentCall.answer(videoState);
+                        final int vState = intent.getIntExtra("VIDEO_STATE", VideoProfile.STATE_AUDIO_ONLY);
+                        final Call ringingAns = CallManager.getRingingCall();
+                        if (ringingAns != null) {
+                            android.telecom.Call.Details details = ringingAns.getDetails();
+                            android.net.Uri handleUri = (details != null) ? details.getHandle() : null;
+                            final String num = (handleUri != null) ? handleUri.getSchemeSpecificPart() : "";
+                            final android.content.BroadcastReceiver.PendingResult pendingResult = goAsync();
+                            AppDatabase.databaseWriteExecutor.execute(() -> {
+                                boolean reqUnlock = false;
+                                try {
+                                    ContactDao dao = AppDatabase.getDatabase(InCallServiceImpl.this).contactDao();
+                                    String normalized = Utils.normalizePhoneNumber(num);
+                                    ContactModel contact = dao.getContactByNormalizedNumber(normalized);
+                                    if (contact == null && normalized.length() >= 10) {
+                                        contact = dao.getContactByLastDigits(normalized.substring(normalized.length() - 10));
+                                    }
+                                    if (contact != null) {
+                                        reqUnlock = contact.isNeedUnlock();
+                                    }
+                                } catch (Exception e) {
+                                    Log.e("InCallServiceImpl", "Failed to query database for unlock check", e);
+                                }
+                                
+                                final boolean finalReqUnlock = reqUnlock;
+                                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                                    try {
+                                        android.app.KeyguardManager km = (android.app.KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+                                        boolean isLocked = (km != null) && km.isKeyguardLocked();
+                                        
+                                        if (finalReqUnlock && isLocked) {
+                                            Intent incomingIntent = new Intent(InCallServiceImpl.this, IncomingCallActivity.class);
+                                            incomingIntent.putExtra("EXTRA_NUMBER", num);
+                                            incomingIntent.putExtra("TRIGGER_UNLOCK_AND_ANSWER", true);
+                                            incomingIntent.putExtra("VIDEO_STATE", vState);
+                                            incomingIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                                            startActivity(incomingIntent);
+                                        } else {
+                                            ringingAns.answer(vState);
+                                        }
+                                    } catch (Exception e) {
+                                        Log.e("InCallServiceImpl", "Error performing answer from receiver", e);
+                                    } finally {
+                                        pendingResult.finish();
+                                    }
+                                });
+                            });
+                        } else {
+                            if (CallManager.sCurrentCall != null && CallManager.sCurrentCall.getState() == Call.STATE_RINGING) {
+                                CallManager.sCurrentCall.answer(vState);
+                            }
                         }
                         break;
                     case ACTION_MUTE:

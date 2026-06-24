@@ -128,14 +128,25 @@ public class Utils {
     }
 
     public static void loadContactPhoto(Context context, String uri, android.widget.ImageView iv) {
-        com.bumptech.glide.Glide.with(context)
-                .load(uri == null || uri.isEmpty() ? R.drawable.ic_contacts : uri)
-                .placeholder(R.drawable.ic_contacts)
-                .error(R.drawable.ic_contacts)
-                .override(480, 480) // High-fidelity size for "clear" images
-                .circleCrop()
-                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                .into(iv);
+        if (iv == null) return;
+        if (uri == null || uri.isEmpty()) {
+            iv.setBackgroundResource(R.drawable.gray_circle);
+            iv.setBackgroundTintList(android.content.res.ColorStateList.valueOf(context.getResources().getColor(R.color.divider_color)));
+            iv.setImageResource(R.drawable.ic_contacts);
+            iv.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
+            int paddingPx = (int) (8 * context.getResources().getDisplayMetrics().density);
+            iv.setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
+        } else {
+            iv.setPadding(0, 0, 0, 0);
+            iv.setBackground(null);
+            iv.setImageTintList(null);
+            com.bumptech.glide.Glide.with(context)
+                    .load(uri)
+                    .override(480, 480) // High-fidelity size for "clear" images
+                    .circleCrop()
+                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                    .into(iv);
+        }
     }
 
     public static String queryContactName(Context context, String number) {

@@ -18,8 +18,8 @@
 
     <!-- Strict Monochromatic UI Base -->
     <color name="card_bg">#FFFFFF</color>
-    <color name="keypad_btn_bg">#EEEEEE</color>
-    <color name="keypad_btn_pressed">#CCCCCC</color>
+    <color name="keypad_btn_bg">#FFFFFF</color>
+    <color name="keypad_btn_pressed">#E5E5EA</color>
 
     <color name="call_incoming">#000000</color>
     <color name="call_outgoing">#000000</color>
