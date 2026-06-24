@@ -97,7 +97,7 @@ public class SpeedDialActivity extends AppCompatActivity {
                 String num = parts.length > 1 ? parts[1] : "";
                 
                 tvName.setText(name);
-                tvName.setTextColor(Color.WHITE);
+                tvName.setTextColor(getResources().getColor(R.color.text_primary));
                 tvName.setTextSize(sp16ToFloat());
                 
                 tvNum.setText(num);

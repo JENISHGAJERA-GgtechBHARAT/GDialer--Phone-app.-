@@ -37,6 +37,7 @@ public class EditContactActivity extends AppCompatActivity {
     private ImageView ivAvatar;
     private View layoutPhotoPicker;
     private TextView btnCancel, btnSave;
+    private androidx.appcompat.widget.SwitchCompat switchNeedUnlock;
 
     private int contactId = -1;
     private String photoUriString = "";
@@ -58,6 +59,7 @@ public class EditContactActivity extends AppCompatActivity {
         layoutPhotoPicker = findViewById(R.id.layoutPhotoPicker);
         btnCancel = findViewById(R.id.btnCancel);
         btnSave = findViewById(R.id.btnSave);
+        switchNeedUnlock = findViewById(R.id.switchNeedUnlock);
 
         contactId = getIntent().getIntExtra("EXTRA_CONTACT_ID", -1);
         String initialNumber = getIntent().getStringExtra("EXTRA_NUMBER");
@@ -84,6 +86,9 @@ public class EditContactActivity extends AppCompatActivity {
                     etPhone.setText(currentContact.getNumber());
                     etNotes.setText(currentContact.getNotes());
                     photoUriString = currentContact.getPhotoUri();
+                    if (switchNeedUnlock != null) {
+                        switchNeedUnlock.setChecked(currentContact.isNeedUnlock());
+                    }
                     Utils.loadContactPhoto(this, photoUriString, ivAvatar);
                 });
             }
@@ -329,13 +334,17 @@ public class EditContactActivity extends AppCompatActivity {
             } catch (Exception e) { Log.e("EditContactActivity", "Sync failed", e); }
 
             // Update local DB
+            boolean needUnlock = switchNeedUnlock != null && switchNeedUnlock.isChecked();
             if (currentContact == null) {
-                database.contactDao().insert(new ContactModel(name, phone, photoUriString, false, false, notes));
+                ContactModel newContact = new ContactModel(name, phone, photoUriString, false, false, notes);
+                newContact.setNeedUnlock(needUnlock);
+                database.contactDao().insert(newContact);
             } else {
                 currentContact.setName(name);
                 currentContact.setNumber(phone);
                 currentContact.setNotes(notes);
                 currentContact.setPhotoUri(photoUriString);
+                currentContact.setNeedUnlock(needUnlock);
                 database.contactDao().update(currentContact);
             }
 

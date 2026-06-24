@@ -6,7 +6,7 @@
     android:orientation="horizontal"
     android:gravity="center_vertical"
     android:padding="12dp"
-    android:background="#20FFFFFF"
+    android:background="@color/keypad_btn_bg"
     android:layout_marginBottom="4dp">
 
     <TextView
@@ -15,7 +15,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:text="Participant"
-        android:textColor="@color/white"
+        android:textColor="@color/text_primary"
         android:textSize="16sp"
         android:textStyle="bold" />
 
@@ -25,7 +25,7 @@
         android:layout_height="wrap_content"
         android:layout_marginEnd="12dp"
         android:text="Active"
-        android:textColor="#AAAAAA"
+        android:textColor="@color/text_secondary"
         android:textSize="12sp" />
 
     <ImageView

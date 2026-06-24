@@ -864,8 +864,15 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     }
 
     private void updateButtonStyle(View btn, ImageView iv, TextView tv, boolean active) {
-        if (active) { if (btn != null) btn.setActivated(true); if (iv != null) iv.setColorFilter(getResources().getColor(R.color.white)); if (tv != null) tv.setTextColor(getResources().getColor(R.color.white)); }
-        else { if (btn != null) btn.setActivated(false); if (iv != null) iv.setColorFilter(getResources().getColor(R.color.white)); if (tv != null) tv.setTextColor(getResources().getColor(R.color.gray_light)); }
+        if (active) {
+            if (btn != null) btn.setActivated(true);
+            if (iv != null) iv.setColorFilter(getResources().getColor(R.color.card_bg));
+            if (tv != null) tv.setTextColor(getResources().getColor(R.color.card_bg));
+        } else {
+            if (btn != null) btn.setActivated(false);
+            if (iv != null) iv.setColorFilter(getResources().getColor(R.color.text_primary));
+            if (tv != null) tv.setTextColor(getResources().getColor(R.color.text_secondary));
+        }
     }
 
     private void startPulseAnimation() { if (viewPulse1 != null) animatePulse(viewPulse1, 0); if (viewPulse2 != null) animatePulse(viewPulse2, 1200); }

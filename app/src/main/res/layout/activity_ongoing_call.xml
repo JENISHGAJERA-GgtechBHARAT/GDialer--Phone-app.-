@@ -47,7 +47,7 @@
         android:src="@drawable/ic_menu_dots"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:tint="@color/white" />
+        app:tint="@color/text_primary" />
 
     <!-- Top Area: Caller Info -->
     <LinearLayout
@@ -66,10 +66,10 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:background="@drawable/rounded_card"
-            android:backgroundTint="#20FFFFFF"
+            android:backgroundTint="@color/keypad_btn_bg"
             android:paddingHorizontal="16dp"
             android:paddingVertical="6dp"
-            android:textColor="@color/white"
+            android:textColor="@color/text_primary"
             android:textSize="14sp"
             android:visibility="gone"
             android:clickable="true"
@@ -80,7 +80,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Unknown"
-            android:textColor="@color/white"
+            android:textColor="@color/text_primary"
             android:textSize="32sp"
             android:textStyle="bold" />
 
@@ -90,7 +90,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="+91 98765 43210"
-            android:textColor="#CCFFFFFF"
+            android:textColor="@color/text_secondary"
             android:textSize="16sp" />
 
         <LinearLayout
@@ -106,11 +106,11 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:background="@drawable/rounded_card"
-                android:backgroundTint="#40FFFFFF"
+                android:backgroundTint="@color/keypad_btn_bg"
                 android:paddingHorizontal="6dp"
                 android:paddingVertical="1dp"
-                android:text="HD"
-                android:textColor="@color/white"
+                android:text="VoLTE"
+                android:textColor="@color/text_primary"
                 android:textSize="11sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
@@ -121,11 +121,11 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:background="@drawable/rounded_card"
-                android:backgroundTint="#40FFFFFF"
+                android:backgroundTint="@color/keypad_btn_bg"
                 android:paddingHorizontal="6dp"
                 android:paddingVertical="1dp"
                 android:text="VoWiFi"
-                android:textColor="@color/white"
+                android:textColor="@color/text_primary"
                 android:textSize="11sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
@@ -135,7 +135,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="00:00"
-                android:textColor="@color/white"
+                android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -157,7 +157,7 @@
             android:layout_height="match_parent"
             android:alpha="0"
             android:background="@drawable/red_circle"
-            android:backgroundTint="#33FFFFFF" />
+            android:backgroundTint="@color/caller_glow" />
 
         <View
             android:id="@+id/viewPulse2"
@@ -165,7 +165,7 @@
             android:layout_height="match_parent"
             android:alpha="0"
             android:background="@drawable/red_circle"
-            android:backgroundTint="#33FFFFFF" />
+            android:backgroundTint="@color/caller_glow" />
 
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/ivCallerPhoto"
@@ -176,7 +176,7 @@
             android:scaleType="centerCrop"
             android:src="@drawable/ic_contacts"
             app:shapeAppearanceOverlay="@style/CircleImage"
-            app:strokeColor="@color/white"
+            app:strokeColor="@color/divider_color"
             app:strokeWidth="2dp" />
     </FrameLayout>
 
@@ -300,7 +300,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:textColor="@color/white"
+            android:textColor="@color/text_primary"
             android:textSize="28sp"
             android:textStyle="bold"
             android:layout_marginBottom="16dp" />

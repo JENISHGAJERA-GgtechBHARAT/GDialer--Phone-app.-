@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#121212"
+    android:background="@color/amoled_black"
     android:fitsSystemWindows="true">
 
     <!-- Header -->
@@ -21,7 +21,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="+91 98765 43210"
-            android:textColor="@color/white"
+            android:textColor="@color/text_primary"
             android:textSize="28sp"
             android:textStyle="bold" />
 
@@ -31,7 +31,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="Live Transcription..."
-            android:textColor="#80FFFFFF"
+            android:textColor="@color/text_secondary"
             android:textSize="14sp" />
     </LinearLayout>
 
@@ -52,7 +52,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Listening for message..."
-            android:textColor="@color/white"
+            android:textColor="@color/text_primary"
             android:textSize="18sp"
             android:lineSpacingExtra="6dp" />
     </androidx.core.widget.NestedScrollView>
@@ -83,9 +83,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
-            <Button android:id="@+id/btnReply1" android:layout_width="wrap_content" android:layout_height="40dp" android:text="Who is this?" android:textAllCaps="false" android:background="@drawable/samsung_control_btn_bg" android:textColor="@color/white" android:layout_marginEnd="8dp" />
-            <Button android:id="@+id/btnReply2" android:layout_width="wrap_content" android:layout_height="40dp" android:text="I'll call you back" android:textAllCaps="false" android:background="@drawable/samsung_control_btn_bg" android:textColor="@color/white" android:layout_marginEnd="8dp" />
-            <Button android:id="@+id/btnReply3" android:layout_width="wrap_content" android:layout_height="40dp" android:text="Can I help you?" android:textAllCaps="false" android:background="@drawable/samsung_control_btn_bg" android:textColor="@color/white" />
+            <Button android:id="@+id/btnReply1" android:layout_width="wrap_content" android:layout_height="40dp" android:text="Who is this?" android:textAllCaps="false" android:background="@drawable/samsung_control_btn_bg" android:textColor="@color/text_primary" android:layout_marginEnd="8dp" />
+            <Button android:id="@+id/btnReply2" android:layout_width="wrap_content" android:layout_height="40dp" android:text="I'll call you back" android:textAllCaps="false" android:background="@drawable/samsung_control_btn_bg" android:textColor="@color/text_primary" android:layout_marginEnd="8dp" />
+            <Button android:id="@+id/btnReply3" android:layout_width="wrap_content" android:layout_height="40dp" android:text="Can I help you?" android:textAllCaps="false" android:background="@drawable/samsung_control_btn_bg" android:textColor="@color/text_primary" />
         </LinearLayout>
     </HorizontalScrollView>
 

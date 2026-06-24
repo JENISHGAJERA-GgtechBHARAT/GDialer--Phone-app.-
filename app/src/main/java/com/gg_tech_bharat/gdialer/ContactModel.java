@@ -14,6 +14,7 @@ public class ContactModel {
     private boolean isFavorite;
     private boolean isSpam;
     private String notes;
+    private boolean needUnlock;
 
     private String normalizedName;
     private String normalizedNumber;
@@ -51,6 +52,8 @@ public class ContactModel {
     public void setSpam(boolean spam) { isSpam = spam; }
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+    public boolean isNeedUnlock() { return needUnlock; }
+    public void setNeedUnlock(boolean needUnlock) { this.needUnlock = needUnlock; }
 
     @Override
     public boolean equals(Object o) {

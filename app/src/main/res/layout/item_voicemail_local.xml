@@ -128,7 +128,7 @@
                     android:paddingHorizontal="8dp"
                     android:paddingVertical="4dp"
                     android:text="1.0x"
-                    android:textColor="@color/white"
+                    android:textColor="@color/text_primary"
                     android:textSize="12sp" />
 
                 <LinearLayout

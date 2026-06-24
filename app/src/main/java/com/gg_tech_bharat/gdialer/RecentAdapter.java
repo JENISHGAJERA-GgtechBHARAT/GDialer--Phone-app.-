@@ -158,7 +158,7 @@ public class RecentAdapter extends RecyclerView.Adapter<RecentAdapter.RecentView
         holder.tvDetails.setText(String.format("%s • %s", Utils.formatTimestamp(recent.getTimestamp()), Utils.formatDuration(recent.getDuration())));
 
         int callIcon = R.drawable.ic_incoming;
-        int callColor = R.color.white;
+        int callColor = R.color.call_incoming;
         if (recent.getCallType() == 2) {
             callIcon = R.drawable.ic_outgoing;
             callColor = R.color.gray_light; 

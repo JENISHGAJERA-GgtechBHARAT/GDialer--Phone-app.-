@@ -161,9 +161,9 @@ public class ContactDetailsActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 boolean isBlocked = blocked != null;
                 ivBottomBlockIcon.setImageResource(R.drawable.ic_info);
-                ivBottomBlockIcon.setColorFilter(getResources().getColor(isBlocked ? R.color.accent_red : R.color.white));
+                ivBottomBlockIcon.setColorFilter(getResources().getColor(isBlocked ? R.color.accent_red : R.color.text_primary));
                 tvBottomBlockText.setText(isBlocked ? "Unblock" : "Block");
-                tvBottomBlockText.setTextColor(getResources().getColor(isBlocked ? R.color.accent_red : R.color.white));
+                tvBottomBlockText.setTextColor(getResources().getColor(isBlocked ? R.color.accent_red : R.color.text_primary));
             });
         });
     }
@@ -269,6 +269,6 @@ public class ContactDetailsActivity extends AppCompatActivity {
 
     private void updateFavoriteIcon(boolean isFav) {
         btnFavoriteToggle.setImageResource(isFav ? R.drawable.ic_star : R.drawable.ic_star_border);
-        btnFavoriteToggle.setColorFilter(getResources().getColor(isFav ? R.color.accent_green : R.color.white));
+        btnFavoriteToggle.setColorFilter(getResources().getColor(isFav ? R.color.accent_green : R.color.text_primary));
     }
 }

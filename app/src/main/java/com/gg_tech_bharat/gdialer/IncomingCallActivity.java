@@ -40,6 +40,7 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
     private String phoneNumber;
     private String callerName = "Unknown";
     private boolean isSpam = false;
+    private boolean needUnlockFirst = false;
 
     private android.media.ToneGenerator toneGenerator;
     private com.google.android.material.bottomsheet.BottomSheetDialog quickReplyDialog;
@@ -321,6 +322,7 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
             if (contact != null) {
                 callerName = contact.getName();
                 isSpam = contact.isSpam();
+                needUnlockFirst = contact.isNeedUnlock();
                 final String photoUri = contact.getPhotoUri();
                 runOnUiThread(() -> {
                     if (tvCallerName != null) tvCallerName.setText(callerName);
@@ -536,11 +538,11 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
                 .setNegativeButton("Cancel", null).create();
         
         dialog.setOnShowListener(d -> {
-            // High-reliability white color enforcement
+            // High-reliability theme-compliant color enforcement
             android.widget.Button pos = dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE);
             android.widget.Button neg = dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE);
-            if (pos != null) pos.setTextColor(android.graphics.Color.WHITE);
-            if (neg != null) neg.setTextColor(android.graphics.Color.WHITE);
+            if (pos != null) pos.setTextColor(getResources().getColor(R.color.text_primary));
+            if (neg != null) neg.setTextColor(getResources().getColor(R.color.text_primary));
         });
 
         if (dialog.getWindow() != null) {
@@ -577,6 +579,32 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
     }
 
     private void answerCall(int videoState) {
+        android.app.KeyguardManager km = (android.app.KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+        boolean isLocked = (km != null) && km.isKeyguardLocked();
+
+        if (needUnlockFirst && isLocked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            km.requestDismissKeyguard(this, new android.app.KeyguardManager.KeyguardDismissCallback() {
+                @Override
+                public void onDismissSucceeded() {
+                    runOnUiThread(() -> performAnswer(videoState));
+                }
+
+                @Override
+                public void onDismissCancelled() {
+                    runOnUiThread(() -> Toast.makeText(IncomingCallActivity.this, "Unlock required to answer", Toast.LENGTH_SHORT).show());
+                }
+
+                @Override
+                public void onDismissError() {
+                    runOnUiThread(() -> Toast.makeText(IncomingCallActivity.this, "Unlock failed", Toast.LENGTH_SHORT).show());
+                }
+            });
+        } else {
+            performAnswer(videoState);
+        }
+    }
+
+    private void performAnswer(int videoState) {
         Call ringingCall = null;
         for (Call c : CallManager.getCalls()) { if (c.getState() == Call.STATE_RINGING) { ringingCall = c; break; } }
         if (ringingCall != null) { try { ringingCall.answer(videoState); finishWithTransition(); } catch (Exception e) { finish(); } }
