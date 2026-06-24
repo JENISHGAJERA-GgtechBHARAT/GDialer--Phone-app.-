@@ -53,8 +53,9 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
 
     private TextView tvCallerName, tvCallerNumber, tvCallTimer, tvMute, tvSpeaker, tvHold;
     private TextView tvKeypadDigits, tvHdIcon, tvWifiIcon;
+    private TextView tvKeypadToggle, tvAddCall, tvVideoCallInCall, tvMerge;
     private ShapeableImageView ivCallerPhoto;
-    private ImageView ivMute, ivSpeaker, ivHold, btnMore;
+    private ImageView ivMute, ivSpeaker, ivHold, btnMore, ivKeypadToggle, ivAddCall, ivVideoCallInCall, ivMerge;
     private View btnMute, btnSpeaker, btnKeypadToggle, btnHold, btnAddCall, btnVideoCallInCall;
     private View btnEndCall, btnMerge, controlGrid;
     private TextView tvMultiCallSummary;
@@ -257,6 +258,15 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
         textureRemoteVideo = findViewById(R.id.textureRemoteVideo);
         textureLocalPreview = findViewById(R.id.textureLocalPreview);
         cardLocalPreview = findViewById(R.id.cardLocalPreview);
+
+        ivKeypadToggle = findViewById(R.id.ivKeypadToggle);
+        tvKeypadToggle = findViewById(R.id.tvKeypadToggle);
+        ivAddCall = findViewById(R.id.ivAddCall);
+        tvAddCall = findViewById(R.id.tvAddCall);
+        ivVideoCallInCall = findViewById(R.id.ivVideoCallInCall);
+        tvVideoCallInCall = findViewById(R.id.tvVideoCallInCall);
+        ivMerge = findViewById(R.id.ivMerge);
+        tvMerge = findViewById(R.id.tvMerge);
     }
 
     private void setupIntentData() {
@@ -336,7 +346,9 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
                         if (controlGrid != null) controlGrid.setAlpha(1.0f);
                         stopLocalCameraPreview();
                     }
-                    if (btnVideoCallInCall != null) btnVideoCallInCall.setActivated(isVideo);
+                    if (btnVideoCallInCall != null) {
+                        updateButtonStyle(btnVideoCallInCall, ivVideoCallInCall, tvVideoCallInCall, isVideo);
+                    }
                 });
                 if (isVideo) new Handler(android.os.Looper.getMainLooper()).postDelayed(this::setVideoSurfaces, 500);
             } catch (Exception e) { Log.e("OngoingCallActivity", "Video UI error", e); }
@@ -567,6 +579,15 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
                 requestVideoUpgrade();
             });
         }
+
+        // Initialize button styles (fixes lack of contrast in light mode on startup)
+        updateButtonStyle(btnMute, ivMute, tvMute, isMuted);
+        updateButtonStyle(btnSpeaker, ivSpeaker, tvSpeaker, false);
+        updateButtonStyle(btnHold, ivHold, tvHold, isHeld);
+        updateButtonStyle(btnKeypadToggle, ivKeypadToggle, tvKeypadToggle, false);
+        updateButtonStyle(btnAddCall, ivAddCall, tvAddCall, false);
+        updateButtonStyle(btnVideoCallInCall, ivVideoCallInCall, tvVideoCallInCall, false);
+        if (btnMerge != null) updateButtonStyle(btnMerge, ivMerge, tvMerge, false);
     }
 
     private void mergeCalls() {
@@ -670,8 +691,9 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
                 int curr = CallManager.sCurrentCall.getDetails().getVideoState();
                 int next = VideoProfile.isVideo(curr) ? VideoProfile.STATE_AUDIO_ONLY : VideoProfile.STATE_BIDIRECTIONAL;
                 vc.sendSessionModifyRequest(new VideoProfile(next));
-                if (btnVideoCallInCall != null) btnVideoCallInCall.setActivated(!VideoProfile.isVideo(curr));
-                updateButtonStyle(btnVideoCallInCall, null, null, !VideoProfile.isVideo(curr));
+                if (btnVideoCallInCall != null) {
+                    updateButtonStyle(btnVideoCallInCall, ivVideoCallInCall, tvVideoCallInCall, !VideoProfile.isVideo(curr));
+                }
             } else {
                 mockVideoState = !mockVideoState;
                 updateVideoUI();

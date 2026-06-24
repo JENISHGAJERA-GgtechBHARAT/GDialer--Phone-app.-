@@ -216,9 +216,11 @@
             android:id="@+id/btnKeypadToggle"
             style="@style/SamsungControlContainer">
             <ImageView
+                android:id="@+id/ivKeypadToggle"
                 style="@style/SamsungControlIcon"
                 android:src="@drawable/ic_keypad" />
             <TextView
+                android:id="@+id/tvKeypadToggle"
                 style="@style/SamsungControlText"
                 android:text="Keypad" />
         </LinearLayout>
@@ -240,9 +242,11 @@
             android:id="@+id/btnAddCall"
             style="@style/SamsungControlContainer">
             <ImageView
+                android:id="@+id/ivAddCall"
                 style="@style/SamsungControlIcon"
                 android:src="@drawable/ic_add" />
             <TextView
+                android:id="@+id/tvAddCall"
                 style="@style/SamsungControlText"
                 android:text="Add call" />
         </LinearLayout>
@@ -251,9 +255,11 @@
             android:id="@+id/btnVideoCallInCall"
             style="@style/SamsungControlContainer">
             <ImageView
+                android:id="@+id/ivVideoCallInCall"
                 style="@style/SamsungControlIcon"
                 android:src="@drawable/ic_video_call" />
             <TextView
+                android:id="@+id/tvVideoCallInCall"
                 style="@style/SamsungControlText"
                 android:text="Video call" />
         </LinearLayout>
@@ -276,9 +282,11 @@
             style="@style/SamsungControlContainer"
             android:visibility="gone">
             <ImageView
+                android:id="@+id/ivMerge"
                 style="@style/SamsungControlIcon"
                 android:src="@drawable/ic_message" />
             <TextView
+                android:id="@+id/tvMerge"
                 style="@style/SamsungControlText"
                 android:text="Merge" />
         </LinearLayout>
