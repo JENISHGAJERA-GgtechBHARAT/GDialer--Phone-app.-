@@ -72,7 +72,8 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:padding="10dp"
-                app:tint="@color/white" />
+                android:tint="#FFFFFF"
+                app:tint="#FFFFFF" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

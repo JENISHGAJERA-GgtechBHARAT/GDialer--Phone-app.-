@@ -291,7 +291,8 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:padding="16dp"
-                app:tint="@color/white" />
+                android:tint="#FFFFFF"
+                app:tint="#FFFFFF" />
 
             <!-- Secondary Call Button (SIM 2) - Hidden by default -->
             <androidx.appcompat.widget.AppCompatImageView
@@ -305,7 +306,8 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:padding="16dp"
-                app:tint="@color/white" />
+                android:tint="#FFFFFF"
+                app:tint="#FFFFFF" />
         </LinearLayout>
 
         <!-- Right: Backspace (visible only when dialing) -->
