@@ -170,8 +170,7 @@
                     android:id="@+id/btnRecordingShare"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:background="@drawable/keypad_button"
-                    android:backgroundTint="#20FFFFFF"
+                    android:background="@drawable/blue_circle"
                     android:padding="12dp"
                     android:src="@android:drawable/ic_menu_share"
                     app:tint="@color/white" />

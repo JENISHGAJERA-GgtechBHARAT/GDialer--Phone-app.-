@@ -99,7 +99,7 @@
 
                     <!-- Send Message -->
                     <LinearLayout style="@style/ContactDetailActionContainer" android:id="@+id/layoutMessage">
-                        <FrameLayout style="@style/ContactDetailActionIconBg" android:background="@drawable/keypad_button" android:backgroundTint="#33FFFFFF">
+                        <FrameLayout style="@style/ContactDetailActionIconBg" android:background="@drawable/blue_circle">
                             <ImageView style="@style/ContactDetailActionIcon" android:src="@drawable/ic_message" app:tint="@color/white" />
                         </FrameLayout>
                         <TextView style="@style/ContactDetailActionText" android:text="Message" />
@@ -107,7 +107,7 @@
 
                     <!-- WhatsApp message -->
                     <LinearLayout style="@style/ContactDetailActionContainer" android:id="@+id/layoutWhatsApp">
-                        <FrameLayout style="@style/ContactDetailActionIconBg" android:background="@drawable/keypad_button" android:backgroundTint="#33FFFFFF">
+                        <FrameLayout style="@style/ContactDetailActionIconBg" android:background="@drawable/green_circle">
                             <ImageView style="@style/ContactDetailActionIcon" android:src="@drawable/ic_whatsapp" />
                         </FrameLayout>
                         <TextView style="@style/ContactDetailActionText" android:text="WhatsApp" />
