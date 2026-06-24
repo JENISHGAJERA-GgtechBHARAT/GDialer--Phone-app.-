@@ -319,9 +319,30 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
                 if (vc != null) {
                     if (textureRemoteVideo != null && textureRemoteVideo.isAvailable()) vc.setDisplaySurface(new Surface(textureRemoteVideo.getSurfaceTexture()));
                     if (textureLocalPreview != null && textureLocalPreview.isAvailable()) vc.setPreviewSurface(new Surface(textureLocalPreview.getSurfaceTexture()));
+                    String frontCameraId = getFrontCameraId();
+                    if (frontCameraId != null) {
+                        vc.setCamera(frontCameraId);
+                    }
                 }
             } catch (Exception e) { Log.e("OngoingCallActivity", "Video error", e); }
         }
+    }
+
+    private String getFrontCameraId() {
+        android.hardware.camera2.CameraManager manager = (android.hardware.camera2.CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        if (manager == null) return null;
+        try {
+            for (String id : manager.getCameraIdList()) {
+                android.hardware.camera2.CameraCharacteristics characteristics = manager.getCameraCharacteristics(id);
+                Integer facing = characteristics.get(android.hardware.camera2.CameraCharacteristics.LENS_FACING);
+                if (facing != null && facing == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT) {
+                    return id;
+                }
+            }
+        } catch (Exception e) {
+            Log.e("OngoingCallActivity", "Error getting front camera ID", e);
+        }
+        return null;
     }
 
     private void updateVideoUI() {
@@ -330,13 +351,21 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
                 int state = CallManager.sCurrentCall.getState();
                 int videoState = CallManager.sCurrentCall.getDetails().getVideoState();
                 boolean isVideo = (VideoProfile.isVideo(videoState) || mockVideoState) && state == Call.STATE_ACTIVE;
+                boolean isRealVideo = VideoProfile.isVideo(videoState) && CallManager.sCurrentCall.getVideoCall() != null;
+
                 runOnUiThread(() -> {
                     if (isVideo) {
                         if (textureRemoteVideo != null) textureRemoteVideo.setVisibility(View.VISIBLE);
                         if (cardLocalPreview != null) cardLocalPreview.setVisibility(View.VISIBLE);
                         if (layoutAvatarPulsing != null) layoutAvatarPulsing.setVisibility(View.GONE);
                         if (controlGrid != null) controlGrid.setAlpha(0.8f);
-                        if (cameraDevice == null) startLocalCameraPreview();
+                        
+                        if (isRealVideo) {
+                            stopLocalCameraPreview();
+                            setVideoSurfaces();
+                        } else {
+                            if (cameraDevice == null) startLocalCameraPreview();
+                        }
                     } else {
                         if (textureRemoteVideo != null) textureRemoteVideo.setVisibility(View.GONE);
                         if (cardLocalPreview != null) cardLocalPreview.setVisibility(View.GONE);

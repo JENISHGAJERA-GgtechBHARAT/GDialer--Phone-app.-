@@ -93,6 +93,8 @@
             android:layout_height="48dp"
             android:layout_marginHorizontal="12dp"
             android:background="@drawable/green_circle"
+            android:backgroundTint="#34C759"
+            app:backgroundTint="#34C759"
             android:src="@drawable/ic_phone"
             android:padding="12dp"
             app:tint="@color/white" />
@@ -104,6 +106,8 @@
             android:layout_height="48dp"
             android:layout_marginHorizontal="12dp"
             android:background="@drawable/blue_circle"
+            android:backgroundTint="#3498DB"
+            app:backgroundTint="#3498DB"
             android:src="@drawable/ic_message"
             android:padding="12dp"
             app:tint="@color/white" />
@@ -115,6 +119,8 @@
             android:layout_height="48dp"
             android:layout_marginHorizontal="12dp"
             android:background="@drawable/green_circle"
+            android:backgroundTint="#34C759"
+            app:backgroundTint="#34C759"
             android:src="@drawable/ic_video_call"
             android:padding="12dp"
             app:tint="@color/white" />
@@ -126,6 +132,8 @@
             android:layout_height="48dp"
             android:layout_marginHorizontal="12dp"
             android:background="@drawable/gray_circle"
+            android:backgroundTint="#8E8E93"
+            app:backgroundTint="#8E8E93"
             android:src="@drawable/ic_info"
             android:padding="12dp"
             app:tint="@color/white" />
