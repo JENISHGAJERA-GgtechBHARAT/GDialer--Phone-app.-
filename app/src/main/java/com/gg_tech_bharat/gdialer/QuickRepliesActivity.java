@@ -48,27 +48,31 @@ public class QuickRepliesActivity extends AppCompatActivity {
     }
 
     private void showEditDialog(@Nullable QuickReplyModel item) {
-        EditText editText = new EditText(this);
-        editText.setHint("Enter response message");
-        if (item != null) editText.setText(item.getMessage());
-        editText.setTextColor(android.graphics.Color.WHITE);
-        editText.setPadding(64, 64, 64, 64);
+        android.view.View dialogView = getLayoutInflater().inflate(R.layout.dialog_custom_message, null);
+        final EditText editText = dialogView.findViewById(R.id.etCustomMessage);
+        
+        if (editText != null) {
+            editText.setHint("Enter response message");
+            if (item != null) editText.setText(item.getMessage());
+        }
 
         AlertDialog dialog = new AlertDialog.Builder(this, R.style.SamsungCustomDialog)
                 .setTitle(item == null ? "Add Quick Response" : "Edit Response")
-                .setView(editText)
+                .setView(dialogView)
                 .setPositiveButton("Save", (d, which) -> {
-                    String msg = editText.getText().toString().trim();
-                    if (msg.isEmpty()) return;
-                    
-                    AppDatabase.databaseWriteExecutor.execute(() -> {
-                        if (item == null) {
-                            database.quickReplyDao().insert(new QuickReplyModel(msg));
-                        } else {
-                            item.setMessage(msg);
-                            database.quickReplyDao().update(item);
-                        }
-                    });
+                    if (editText != null) {
+                        String msg = editText.getText().toString().trim();
+                        if (msg.isEmpty()) return;
+                        
+                        AppDatabase.databaseWriteExecutor.execute(() -> {
+                            if (item == null) {
+                                database.quickReplyDao().insert(new QuickReplyModel(msg));
+                            } else {
+                                item.setMessage(msg);
+                                database.quickReplyDao().update(item);
+                            }
+                        });
+                    }
                 })
                 .setNegativeButton("Cancel", null)
                 .create();

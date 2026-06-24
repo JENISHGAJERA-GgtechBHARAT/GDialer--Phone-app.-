@@ -47,12 +47,31 @@ public abstract class AppDatabase extends RoomDatabase {
         @Override
         public void onCreate(@NonNull SupportSQLiteDatabase db) {
             super.onCreate(db);
+            seedQuickReplies();
+        }
+
+        @Override
+        public void onOpen(@NonNull SupportSQLiteDatabase db) {
+            super.onOpen(db);
+            seedQuickReplies();
+        }
+
+        private void seedQuickReplies() {
             databaseWriteExecutor.execute(() -> {
-                QuickReplyDao dao = INSTANCE.quickReplyDao();
-                dao.insert(new QuickReplyModel("I will call you later."));
-                dao.insert(new QuickReplyModel("Can't talk right now."));
-                dao.insert(new QuickReplyModel("I'm in a meeting."));
-                dao.insert(new QuickReplyModel("Call me back later."));
+                try {
+                    QuickReplyDao dao = INSTANCE.quickReplyDao();
+                    java.util.List<QuickReplyModel> existing = dao.getAllQuickRepliesSync();
+                    if (existing == null || existing.isEmpty()) {
+                        dao.insert(new QuickReplyModel("I will call you later."));
+                        dao.insert(new QuickReplyModel("Can't talk right now."));
+                        dao.insert(new QuickReplyModel("I'm in a meeting."));
+                        dao.insert(new QuickReplyModel("Please text me."));
+                        dao.insert(new QuickReplyModel("I'll call you back."));
+                        dao.insert(new QuickReplyModel("Call me back later."));
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("AppDatabase", "Error seeding quick replies", e);
+                }
             });
         }
     };

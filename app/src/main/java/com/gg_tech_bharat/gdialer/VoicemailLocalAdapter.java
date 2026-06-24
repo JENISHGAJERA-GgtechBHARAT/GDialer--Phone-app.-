@@ -81,6 +81,10 @@ public class VoicemailLocalAdapter extends RecyclerView.Adapter<VoicemailLocalAd
             int prevExpanded = expandedPosition;
             expandedPosition = (expandedPosition == currentPos) ? -1 : currentPos;
             
+            if (currentPlayingHolder != null && (expandedPosition == -1 || prevExpanded == currentPlayingHolder.getBindingAdapterPosition())) {
+                stopPlaying();
+            }
+
             if (prevExpanded != -1) notifyItemChanged(prevExpanded);
             if (expandedPosition != -1) notifyItemChanged(expandedPosition);
             

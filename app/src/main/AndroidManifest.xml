@@ -81,6 +81,7 @@
         <activity android:name=".EditContactActivity" android:exported="false" />
         <activity android:name=".BlockListActivity" android:exported="false" />
         <activity android:name=".QuickRepliesActivity" android:exported="false" />
+        <activity android:name=".CallRecordingSettingsActivity" android:exported="false" />
         <activity android:name=".GreetingActivity" android:exported="false" />
         <activity android:name=".VoicemailActivity"
             android:theme="@style/Theme.GDialer.Fullscreen"
@@ -132,6 +133,16 @@
                 <action android:name="android.telecom.InCallService" />
             </intent-filter>
         </service>
+
+        <service
+            android:name=".RecordingService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
+
+        <activity
+            android:name=".RecordingsListActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GDialer" />
 
         <service
             android:name=".CallAudioAccessibilityService"

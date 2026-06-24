@@ -188,11 +188,13 @@ public class KeypadFragment extends Fragment implements View.OnClickListener {
         Utils.triggerHaptic(v);
         PopupMenu p = new PopupMenu(requireContext(), v);
         p.getMenu().add("Speed dial");
+        p.getMenu().add("Recorded calls");
         p.getMenu().add("Settings");
         p.setOnMenuItemClickListener(item -> {
             if (item.getTitle() == null) return false;
             String title = item.getTitle().toString();
             if ("Speed dial".equals(title)) startActivity(new Intent(requireContext(), SpeedDialActivity.class));
+            else if ("Recorded calls".equals(title)) startActivity(new Intent(requireContext(), RecordingsListActivity.class));
             else if ("Settings".equals(title)) startActivity(new Intent(requireContext(), SettingsActivity.class));
             return true;
         });

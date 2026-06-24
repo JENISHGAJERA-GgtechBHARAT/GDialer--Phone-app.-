@@ -17,7 +17,7 @@ import com.google.android.material.switchmaterial.SwitchMaterial;
 
 public class SettingsFragment extends Fragment {
 
-    private SwitchMaterial switchDarkMode, switchSpam, switchVibration;
+    private SwitchMaterial switchDarkMode, switchSystemTheme, switchSpam, switchVibration;
     private SharedPreferences prefs;
 
     @Nullable
@@ -27,29 +27,55 @@ public class SettingsFragment extends Fragment {
         prefs = requireContext().getSharedPreferences("DialerPrefs", Context.MODE_PRIVATE);
 
         switchDarkMode = view.findViewById(R.id.switchDarkMode);
+        switchSystemTheme = view.findViewById(R.id.switchSystemTheme);
         switchSpam = view.findViewById(R.id.switchSpam);
         switchVibration = view.findViewById(R.id.switchVibration);
 
         // Load states correctly
-        switchDarkMode.setChecked(prefs.getBoolean("dark_mode", true));
-        switchSpam.setChecked(prefs.getBoolean("spam_protection", true));
-        switchVibration.setChecked(prefs.getBoolean("vibration", true));
+        boolean useSystem = prefs.getBoolean("use_system_theme", false);
+        if (switchSystemTheme != null) switchSystemTheme.setChecked(useSystem);
+        if (switchDarkMode != null) {
+            switchDarkMode.setChecked(prefs.getBoolean("dark_mode", true));
+            switchDarkMode.setEnabled(!useSystem);
+        }
+        if (switchSpam != null) switchSpam.setChecked(prefs.getBoolean("spam_protection", true));
+        if (switchVibration != null) switchVibration.setChecked(prefs.getBoolean("vibration", true));
 
-        switchDarkMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            Utils.triggerHaptic(buttonView);
-            prefs.edit().putBoolean("dark_mode", isChecked).apply();
-            AppCompatDelegate.setDefaultNightMode(isChecked ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
-        });
+        if (switchDarkMode != null) {
+            switchDarkMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                Utils.triggerHaptic(buttonView);
+                prefs.edit().putBoolean("dark_mode", isChecked).apply();
+                AppCompatDelegate.setDefaultNightMode(isChecked ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
+            });
+        }
 
-        switchSpam.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            Utils.triggerHaptic(buttonView);
-            prefs.edit().putBoolean("spam_protection", isChecked).apply();
-        });
+        if (switchSystemTheme != null) {
+            switchSystemTheme.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                Utils.triggerHaptic(buttonView);
+                prefs.edit().putBoolean("use_system_theme", isChecked).apply();
+                if (switchDarkMode != null) switchDarkMode.setEnabled(!isChecked);
+                if (isChecked) {
+                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+                } else {
+                    boolean darkMode = prefs.getBoolean("dark_mode", true);
+                    AppCompatDelegate.setDefaultNightMode(darkMode ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
+                }
+            });
+        }
 
-        switchVibration.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            Utils.triggerHaptic(buttonView);
-            prefs.edit().putBoolean("vibration", isChecked).apply();
-        });
+        if (switchSpam != null) {
+            switchSpam.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                Utils.triggerHaptic(buttonView);
+                prefs.edit().putBoolean("spam_protection", isChecked).apply();
+            });
+        }
+
+        if (switchVibration != null) {
+            switchVibration.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                Utils.triggerHaptic(buttonView);
+                prefs.edit().putBoolean("vibration", isChecked).apply();
+            });
+        }
 
         view.findViewById(R.id.layoutSpeedDialSettings).setOnClickListener(v -> {
             Utils.triggerHaptic(v);
@@ -65,6 +91,14 @@ public class SettingsFragment extends Fragment {
             Utils.triggerHaptic(v);
             startActivity(new Intent(requireContext(), QuickRepliesActivity.class));
         });
+
+        View callRecSettings = view.findViewById(R.id.layoutCallRecordingSettings);
+        if (callRecSettings != null) {
+            callRecSettings.setOnClickListener(v -> {
+                Utils.triggerHaptic(v);
+                startActivity(new Intent(requireContext(), CallRecordingSettingsActivity.class));
+            });
+        }
 
         View accountSync = view.findViewById(R.id.layoutAccountSync);
         if (accountSync != null) {

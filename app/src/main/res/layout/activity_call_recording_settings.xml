@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/app_background"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Header bar -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_backspace"
+            android:rotation="180"
+            app:tint="@color/text_primary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="16dp"
+            android:layout_toEndOf="@id/btnBack"
+            android:text="Record calls"
+            android:textColor="@color/text_primary"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginBottom="8dp"
+        android:text="Auto Recording"
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <!-- Settings Card -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp"
+        app:cardBackgroundColor="@color/card_bg"
+        app:cardCornerRadius="@dimen/oneui_card_radius"
+        app:cardElevation="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <!-- Switch Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="16dp"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Auto record calls"
+                    android:textColor="@color/text_primary"
+                    android:textSize="16sp" />
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchAutoRecord"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <View style="@style/SettingsDivider" />
+
+            <!-- Options Container (RadioGroup) -->
+            <LinearLayout
+                android:id="@+id/layoutOptionsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <RadioGroup
+                    android:id="@+id/radioGroupRecordMode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="8dp">
+
+                    <RadioButton
+                        android:id="@+id/radioRecordAll"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:text="All calls"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp"
+                        app:buttonTint="@color/text_primary" />
+
+                    <RadioButton
+                        android:id="@+id/radioRecordUnsaved"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:text="Unsaved numbers"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp"
+                        app:buttonTint="@color/text_primary" />
+
+                    <RadioButton
+                        android:id="@+id/radioRecordSelected"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:text="Selected numbers"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp"
+                        app:buttonTint="@color/text_primary" />
+                </RadioGroup>
+
+                <View style="@style/SettingsDivider" />
+
+                <!-- Selected Numbers List Trigger -->
+                <LinearLayout
+                    android:id="@+id/layoutSelectedNumbers"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="16dp"
+                    android:gravity="center_vertical"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Selected numbers to record"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp" />
+                    <TextView
+                        android:id="@+id/tvSelectedNumbersCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 numbers"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        android:layout_marginEnd="8dp" />
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_info"
+                        app:tint="@color/text_secondary" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+</LinearLayout>

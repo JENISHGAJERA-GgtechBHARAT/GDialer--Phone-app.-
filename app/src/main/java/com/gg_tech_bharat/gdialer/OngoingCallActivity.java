@@ -64,6 +64,11 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     private View cardLocalPreview;
     private TextureView textureRemoteVideo, textureLocalPreview;
 
+    private android.hardware.camera2.CameraDevice cameraDevice;
+    private android.hardware.camera2.CameraCaptureSession cameraCaptureSession;
+    private String cameraId;
+    private boolean mockVideoState = false;
+
     private String phoneNumber;
     private String callerName = "Unknown";
     private boolean isMuted = false;
@@ -96,6 +101,13 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     private final BroadcastReceiver disconnectReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             if ("com.gg_tech_bharat.gdialer.CALL_DISCONNECTED".equals(intent.getAction())) {
+                // Stop recording when call disconnected
+                try {
+                    Intent recordIntent = new Intent(context, RecordingService.class);
+                    recordIntent.setAction(RecordingService.ACTION_STOP_RECORDING);
+                    context.startService(recordIntent);
+                } catch (Exception ignored) {}
+
                 // Vibration handled by InCallServiceImpl to avoid duplicates
                 finishAndRemoveTask();
                 overridePendingTransition(0, R.anim.premium_fade_out);
@@ -139,6 +151,16 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        android.content.SharedPreferences prefs = getSharedPreferences("DialerPrefs", MODE_PRIVATE);
+        boolean useSystem = prefs.getBoolean("use_system_theme", false);
+        if (useSystem) {
+            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        } else {
+            boolean darkMode = prefs.getBoolean("dark_mode", true);
+            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(
+                    darkMode ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES : androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO);
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true);
             setTurnScreenOn(true);
@@ -253,15 +275,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     }
 
     private void setupProximitySensor() {
-        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        if (sensorManager != null) {
-            proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
-            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
-            if (pm != null && proximitySensor != null) {
-                try { wakeLock = pm.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, getLocalClassName()); }
-                catch (Exception e) { Log.e("OngoingCallActivity", "Wakelock error", e); }
-            }
-        }
+        // Disabled local proximity sensor management in favor of InCallServiceImpl's global wake lock
     }
 
     private void setupVideoSurfaces() {
@@ -275,7 +289,12 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
         }
         if (textureLocalPreview != null) {
             textureLocalPreview.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
-                @Override public void onSurfaceTextureAvailable(@NonNull SurfaceTexture st, int w, int h) { setVideoSurfaces(); }
+                @Override public void onSurfaceTextureAvailable(@NonNull SurfaceTexture st, int w, int h) { 
+                    setVideoSurfaces(); 
+                    if (cameraDevice != null && cameraCaptureSession == null) {
+                        createCameraPreviewSession();
+                    }
+                }
                 @Override public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture st, int w, int h) {}
                 @Override public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture st) { return true; }
                 @Override public void onSurfaceTextureUpdated(@NonNull SurfaceTexture st) {}
@@ -300,13 +319,14 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
             try {
                 int state = CallManager.sCurrentCall.getState();
                 int videoState = CallManager.sCurrentCall.getDetails().getVideoState();
-                boolean isVideo = VideoProfile.isVideo(videoState) && state == Call.STATE_ACTIVE;
+                boolean isVideo = (VideoProfile.isVideo(videoState) || mockVideoState) && state == Call.STATE_ACTIVE;
                 runOnUiThread(() -> {
                     if (isVideo) {
                         if (textureRemoteVideo != null) textureRemoteVideo.setVisibility(View.VISIBLE);
                         if (cardLocalPreview != null) cardLocalPreview.setVisibility(View.VISIBLE);
                         if (layoutAvatarPulsing != null) layoutAvatarPulsing.setVisibility(View.GONE);
                         if (controlGrid != null) controlGrid.setAlpha(0.8f);
+                        if (cameraDevice == null) startLocalCameraPreview();
                     } else {
                         if (textureRemoteVideo != null) textureRemoteVideo.setVisibility(View.GONE);
                         if (cardLocalPreview != null) cardLocalPreview.setVisibility(View.GONE);
@@ -314,6 +334,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
                             if (layoutAvatarPulsing != null) layoutAvatarPulsing.setVisibility(View.VISIBLE);
                         }
                         if (controlGrid != null) controlGrid.setAlpha(1.0f);
+                        stopLocalCameraPreview();
                     }
                     if (btnVideoCallInCall != null) btnVideoCallInCall.setActivated(isVideo);
                 });
@@ -338,10 +359,22 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     private void updateMultiCallUI() {
         runOnUiThread(() -> {
             List<Call> calls = CallManager.getCalls();
-            if (calls.size() > 1) {
+            int participantCount = 0;
+            for (Call c : calls) {
+                if (c.getDetails() != null && c.getDetails().hasProperty(Call.Details.PROPERTY_CONFERENCE)) {
+                    continue;
+                }
+                String num = getNumberFromCall(c);
+                if (num == null || num.equals("Unknown") || num.isEmpty()) {
+                    continue;
+                }
+                participantCount++;
+            }
+
+            if (participantCount > 1) {
                 if (tvMultiCallSummary != null) {
                     tvMultiCallSummary.setVisibility(View.VISIBLE);
-                    tvMultiCallSummary.setText(calls.size() + " people in call");
+                    tvMultiCallSummary.setText(participantCount + " people in call");
                     tvMultiCallSummary.setOnClickListener(v -> { Utils.triggerHaptic(v); showParticipantsBottomSheet(); });
                 }
                 if (btnMerge != null) btnMerge.setVisibility(View.VISIBLE);
@@ -365,11 +398,18 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
         dialog.setContentView(view);
         List<Call> calls = CallManager.getCalls();
         for (Call call : calls) {
+            if (call.getDetails() != null && call.getDetails().hasProperty(Call.Details.PROPERTY_CONFERENCE)) {
+                continue;
+            }
+            String num = getNumberFromCall(call);
+            if (num == null || num.equals("Unknown") || num.isEmpty()) {
+                continue;
+            }
+
             View item = getLayoutInflater().inflate(R.layout.multi_call_item, listContainer, false);
             TextView nameTv = item.findViewById(R.id.tvMultiCallName);
             TextView statusTv = item.findViewById(R.id.tvMultiCallStatus);
             View endBtn = item.findViewById(R.id.btnMultiCallEnd);
-            String num = getNumberFromCall(call);
             
             // Set initial display to number
             nameTv.setText(num); 
@@ -389,7 +429,17 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
                 Utils.triggerHaptic(v);
                 call.disconnect();
                 listContainer.removeView(item);
-                if (CallManager.getCalls().size() <= 1) dialog.dismiss();
+                
+                // Count remaining valid participants
+                int remainingCount = 0;
+                for (Call c : CallManager.getCalls()) {
+                    if (c.getDetails() != null && c.getDetails().hasProperty(Call.Details.PROPERTY_CONFERENCE)) continue;
+                    String numberStr = getNumberFromCall(c);
+                    if (numberStr != null && !numberStr.equals("Unknown") && !numberStr.isEmpty()) {
+                        remainingCount++;
+                    }
+                }
+                if (remainingCount <= 1) dialog.dismiss();
             });
             listContainer.addView(item);
         }
@@ -544,7 +594,57 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
 
     private void showMoreMenu(View v) {
         Utils.triggerHaptic(v); 
-        // Recording options removed
+        PopupMenu popup = new PopupMenu(this, v);
+        
+        boolean isRecording = RecordingService.isServiceRunning();
+        
+        if (isRecording) {
+            popup.getMenu().add(Menu.NONE, 1, 1, "Stop Recording");
+        } else {
+            popup.getMenu().add(Menu.NONE, 1, 1, "Record Call");
+        }
+        popup.getMenu().add(Menu.NONE, 2, 2, "View Recordings");
+        
+        popup.setOnMenuItemClickListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == 1) {
+                if (isRecording) {
+                    Intent intent = new Intent(this, RecordingService.class);
+                    intent.setAction(RecordingService.ACTION_STOP_RECORDING);
+                    startService(intent);
+                    Toast.makeText(this, "Recording stopped", Toast.LENGTH_SHORT).show();
+                } else {
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                        androidx.core.app.ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, 1003);
+                    } else {
+                        startCallRecording();
+                    }
+                }
+                return true;
+            } else if (itemId == 2) {
+                startActivity(new Intent(this, RecordingsListActivity.class));
+                return true;
+            }
+            return false;
+        });
+        popup.show();
+    }
+
+    private void startCallRecording() {
+        Intent intent = new Intent(this, RecordingService.class);
+        intent.setAction(RecordingService.ACTION_START_RECORDING);
+        intent.putExtra(RecordingService.EXTRA_PHONE_NUMBER, phoneNumber);
+        intent.putExtra(RecordingService.EXTRA_CALLER_NAME, callerName);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent);
+            } else {
+                startService(intent);
+            }
+            Toast.makeText(this, "Recording started", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Failed to start recording service", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void toggleKeypad() {
@@ -572,6 +672,110 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
                 vc.sendSessionModifyRequest(new VideoProfile(next));
                 if (btnVideoCallInCall != null) btnVideoCallInCall.setActivated(!VideoProfile.isVideo(curr));
                 updateButtonStyle(btnVideoCallInCall, null, null, !VideoProfile.isVideo(curr));
+            } else {
+                mockVideoState = !mockVideoState;
+                updateVideoUI();
+            }
+        }
+    }
+
+    private void startLocalCameraPreview() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        android.hardware.camera2.CameraManager manager = (android.hardware.camera2.CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        if (manager == null) return;
+        try {
+            for (String id : manager.getCameraIdList()) {
+                android.hardware.camera2.CameraCharacteristics characteristics = manager.getCameraCharacteristics(id);
+                Integer facing = characteristics.get(android.hardware.camera2.CameraCharacteristics.LENS_FACING);
+                if (facing != null && facing == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT) {
+                    cameraId = id;
+                    break;
+                }
+            }
+            if (cameraId == null) {
+                if (manager.getCameraIdList().length > 0) cameraId = manager.getCameraIdList()[0];
+                else return;
+            }
+            manager.openCamera(cameraId, new android.hardware.camera2.CameraDevice.StateCallback() {
+                @Override
+                public void onOpened(@NonNull android.hardware.camera2.CameraDevice camera) {
+                    cameraDevice = camera;
+                    createCameraPreviewSession();
+                }
+                @Override
+                public void onDisconnected(@NonNull android.hardware.camera2.CameraDevice camera) {
+                    camera.close();
+                    cameraDevice = null;
+                }
+                @Override
+                public void onError(@NonNull android.hardware.camera2.CameraDevice camera, int error) {
+                    camera.close();
+                    cameraDevice = null;
+                }
+            }, null);
+        } catch (Exception e) {
+            Log.e("OngoingCallActivity", "Camera open error", e);
+        }
+    }
+
+    private void createCameraPreviewSession() {
+        if (cameraDevice == null || textureLocalPreview == null || !textureLocalPreview.isAvailable()) return;
+        try {
+            SurfaceTexture texture = textureLocalPreview.getSurfaceTexture();
+            if (texture == null) return;
+            texture.setDefaultBufferSize(640, 480);
+            Surface previewSurface = new Surface(texture);
+            final android.hardware.camera2.CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(android.hardware.camera2.CameraDevice.TEMPLATE_PREVIEW);
+            builder.addTarget(previewSurface);
+            cameraDevice.createCaptureSession(java.util.Arrays.asList(previewSurface), new android.hardware.camera2.CameraCaptureSession.StateCallback() {
+                @Override
+                public void onConfigured(@NonNull android.hardware.camera2.CameraCaptureSession session) {
+                    if (cameraDevice == null) return;
+                    cameraCaptureSession = session;
+                    try {
+                        builder.set(android.hardware.camera2.CaptureRequest.CONTROL_MODE, android.hardware.camera2.CameraMetadata.CONTROL_MODE_AUTO);
+                        cameraCaptureSession.setRepeatingRequest(builder.build(), null, null);
+                    } catch (Exception e) {
+                        Log.e("OngoingCallActivity", "Capture request error", e);
+                    }
+                }
+                @Override
+                public void onConfigureFailed(@NonNull android.hardware.camera2.CameraCaptureSession session) {
+                    Log.e("OngoingCallActivity", "Capture session configure failed");
+                }
+            }, null);
+        } catch (Exception e) {
+            Log.e("OngoingCallActivity", "Session create error", e);
+        }
+    }
+
+    private void stopLocalCameraPreview() {
+        if (cameraCaptureSession != null) {
+            try { cameraCaptureSession.close(); } catch (Exception ignored) {}
+            cameraCaptureSession = null;
+        }
+        if (cameraDevice != null) {
+            try { cameraDevice.close(); } catch (Exception ignored) {}
+            cameraDevice = null;
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 1002) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                requestVideoUpgrade();
+            } else {
+                Toast.makeText(this, "Camera permission is required for video calls", Toast.LENGTH_SHORT).show();
+            }
+        } else if (requestCode == 1003) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startCallRecording();
+            } else {
+                Toast.makeText(this, "Microphone permission is required to record calls", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -674,10 +878,25 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     }
 
     private void endCallSignal() { if (CallManager.sCurrentCall != null) { try { CallManager.sCurrentCall.disconnect(); } catch (Exception ignored) {} } finishAndRemoveTask(); }
-    @Override public void onSensorChanged(SensorEvent event) { if (proximitySensor == null) return; if (event.values[0] < proximitySensor.getMaximumRange()) { if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire(10 * 60 * 1000L); } else { if (wakeLock != null && wakeLock.isHeld()) wakeLock.release(); } }
+    @Override public void onSensorChanged(SensorEvent event) {}
     @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
-    @Override protected void onResume() { super.onResume(); if (proximitySensor != null) sensorManager.registerListener(this, proximitySensor, SensorManager.SENSOR_DELAY_NORMAL); updateSpeakerUI(null); }
-    @Override protected void onPause() { super.onPause(); if (sensorManager != null) sensorManager.unregisterListener(this); if (wakeLock != null && wakeLock.isHeld()) wakeLock.release(); }
+    @Override protected void onResume() { super.onResume(); updateSpeakerUI(null); }
+    @Override protected void onPause() { 
+        super.onPause(); 
+        stopLocalCameraPreview();
+    }
     private void registerDisconnectReceiver() { IntentFilter f = new IntentFilter(); f.addAction("com.gg_tech_bharat.gdialer.CALL_DISCONNECTED"); f.addAction("com.gg_tech_bharat.gdialer.VIDEO_STATE_CHANGED"); try { androidx.core.content.ContextCompat.registerReceiver(this, disconnectReceiver, f, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED); } catch (Exception ignored) {} }
-    @Override protected void onDestroy() { timerHandler.removeCallbacks(timerRunnable); CallManager.unregisterListener(callListListener); try { unregisterReceiver(disconnectReceiver); } catch (Exception ignored) {} super.onDestroy(); }
+    @Override protected void onDestroy() {
+        // Stop recording and camera preview when activity destroyed just in case
+        try {
+            Intent recordIntent = new Intent(this, RecordingService.class);
+            recordIntent.setAction(RecordingService.ACTION_STOP_RECORDING);
+            startService(recordIntent);
+        } catch (Exception ignored) {}
+        stopLocalCameraPreview();
+        timerHandler.removeCallbacks(timerRunnable); 
+        CallManager.unregisterListener(callListListener); 
+        try { unregisterReceiver(disconnectReceiver); } catch (Exception ignored) {} 
+        super.onDestroy(); 
+    }
 }

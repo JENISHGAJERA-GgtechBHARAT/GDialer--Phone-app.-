@@ -116,6 +116,10 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
         updateUIForCallWaiting();
         updateCallStatusIndicators();
 
+        if (InCallServiceImpl.sInstance != null) {
+            InCallServiceImpl.sInstance.silenceRingingNotification();
+        }
+
         IntentFilter filter = new IntentFilter();
         filter.addAction("com.gg_tech_bharat.gdialer.CALL_DISCONNECTED");
         filter.addAction("com.gg_tech_bharat.gdialer.RINGING_CALL_REMOVED");
@@ -521,7 +525,12 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
                 .setPositiveButton("Send", (d, which) -> {
                     if (editText != null) {
                         String msg = editText.getText().toString().trim();
-                        if (!msg.isEmpty()) sendQuickMessageDecline(msg);
+                        if (!msg.isEmpty()) {
+                            AppDatabase.databaseWriteExecutor.execute(() -> {
+                                AppDatabase.getDatabase(IncomingCallActivity.this).quickReplyDao().insert(new QuickReplyModel(msg));
+                            });
+                            sendQuickMessageDecline(msg);
+                        }
                     }
                 })
                 .setNegativeButton("Cancel", null).create();

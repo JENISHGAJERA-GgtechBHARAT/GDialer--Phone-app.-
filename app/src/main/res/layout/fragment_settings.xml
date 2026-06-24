@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/black"
+    android:background="@color/app_background"
     android:padding="16dp">
 
     <LinearLayout
@@ -75,6 +75,18 @@
 
                 <View style="@style/SettingsDivider" />
 
+                <!-- Use System Theme -->
+                <LinearLayout style="@style/SettingsItemContainer">
+                    <TextView style="@style/SettingsItemTitle" android:text="Use system theme" />
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchSystemTheme"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="false" />
+                </LinearLayout>
+
+                <View style="@style/SettingsDivider" />
+
                 <!-- Spam Protection -->
                 <LinearLayout style="@style/SettingsItemContainer">
                     <TextView style="@style/SettingsItemTitle" android:text="Spam &amp; Caller ID protection" />
@@ -130,6 +142,18 @@
                         android:layout_width="20dp"
                         android:layout_height="20dp"
                         android:src="@drawable/ic_message"
+                        app:tint="@color/text_secondary" />
+                </LinearLayout>
+
+                <View style="@style/SettingsDivider" />
+
+                <!-- Call Recording Settings -->
+                <LinearLayout style="@style/SettingsItemContainer" android:id="@+id/layoutCallRecordingSettings" android:clickable="true" android:focusable="true">
+                    <TextView style="@style/SettingsItemTitle" android:text="Record calls" />
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_phone"
                         app:tint="@color/text_secondary" />
                 </LinearLayout>
 
