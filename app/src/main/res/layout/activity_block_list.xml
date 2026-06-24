@@ -63,15 +63,15 @@
                 android:textColorHint="@color/text_secondary"
                 android:textSize="16sp" />
 
-            <ImageButton
+            <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/btnAddBlock"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="@drawable/green_circle"
                 android:src="@drawable/ic_add"
-                android:backgroundTint="@color/accent_green"
-                app:backgroundTint="@color/accent_green"
-                android:tint="@color/white"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="10dp"
                 app:tint="@color/white" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>

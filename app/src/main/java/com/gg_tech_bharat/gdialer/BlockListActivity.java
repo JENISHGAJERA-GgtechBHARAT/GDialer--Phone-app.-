@@ -20,7 +20,8 @@ import java.util.List;
 public class BlockListActivity extends AppCompatActivity {
 
     private EditText etBlockNumber;
-    private ImageButton btnAddBlock, btnBack;
+    private ImageButton btnBack;
+    private androidx.appcompat.widget.AppCompatImageView btnAddBlock;
     private RecyclerView rvBlockedList;
     private BlockedAdapter adapter;
     private AppDatabase database;

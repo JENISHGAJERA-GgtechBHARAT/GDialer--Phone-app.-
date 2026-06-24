@@ -36,7 +36,8 @@ public class KeypadFragment extends Fragment implements View.OnClickListener {
 
     private TextView tvDialedNumber, tvCreateContact, tvAddToContact;
     private LinearLayout layoutKeypadActions;
-    private ImageButton btnBackspace, btnCall, btnCallSim2, btnVideoCall, btnKeypadMenu;
+    private ImageButton btnBackspace, btnVideoCall, btnKeypadMenu;
+    private androidx.appcompat.widget.AppCompatImageView btnCall, btnCallSim2;
     private RecyclerView rvSuggestions;
     private ContactAdapter adapter;
     private final StringBuilder dialedDigits = new StringBuilder();

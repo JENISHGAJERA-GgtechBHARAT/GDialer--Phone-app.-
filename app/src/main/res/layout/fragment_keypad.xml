@@ -282,19 +282,19 @@
             app:layout_constraintTop_toTopOf="parent">
 
             <!-- Primary Call Button -->
-            <ImageButton
+            <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/btnCall"
                 android:layout_width="64dp"
                 android:layout_height="64dp"
                 android:background="@drawable/green_circle"
                 android:src="@drawable/ic_phone"
-                android:backgroundTint="@color/accent_green"
-                app:backgroundTint="@color/accent_green"
-                android:tint="@color/white"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="16dp"
                 app:tint="@color/white" />
 
             <!-- Secondary Call Button (SIM 2) - Hidden by default -->
-            <ImageButton
+            <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/btnCallSim2"
                 android:layout_width="64dp"
                 android:layout_height="64dp"
@@ -302,9 +302,9 @@
                 android:background="@drawable/green_circle"
                 android:src="@drawable/ic_phone"
                 android:visibility="gone"
-                android:backgroundTint="@color/accent_green"
-                app:backgroundTint="@color/accent_green"
-                android:tint="@color/white"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="16dp"
                 app:tint="@color/white" />
         </LinearLayout>
 
