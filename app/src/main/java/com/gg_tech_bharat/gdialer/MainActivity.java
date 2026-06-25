@@ -29,7 +29,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         android.content.SharedPreferences prefs = getSharedPreferences("DialerPrefs", MODE_PRIVATE);
-        boolean useSystem = prefs.getBoolean("use_system_theme", false);
+        boolean useSystem = prefs.getBoolean("use_system_theme", true);
         if (useSystem) {
             androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
         } else {

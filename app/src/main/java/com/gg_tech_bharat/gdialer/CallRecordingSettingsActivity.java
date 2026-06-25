@@ -32,7 +32,7 @@ public class CallRecordingSettingsActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         prefs = getSharedPreferences("DialerPrefs", MODE_PRIVATE);
-        boolean useSystem = prefs.getBoolean("use_system_theme", false);
+        boolean useSystem = prefs.getBoolean("use_system_theme", true);
         if (useSystem) {
             androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
         } else {

@@ -32,7 +32,7 @@ public class SettingsFragment extends Fragment {
         switchVibration = view.findViewById(R.id.switchVibration);
 
         // Load states correctly
-        boolean useSystem = prefs.getBoolean("use_system_theme", false);
+        boolean useSystem = prefs.getBoolean("use_system_theme", true);
         if (switchSystemTheme != null) switchSystemTheme.setChecked(useSystem);
         if (switchDarkMode != null) {
             switchDarkMode.setChecked(prefs.getBoolean("dark_mode", true));
