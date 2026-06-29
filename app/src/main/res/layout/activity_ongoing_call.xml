@@ -169,10 +169,11 @@
 
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/ivCallerPhoto"
-            android:layout_width="138dp"
+            android:layout_width="140dp"
             android:layout_height="140dp"
             android:layout_gravity="center"
             android:elevation="4dp"
+            android:outlineProvider="background"
             android:scaleType="centerCrop"
             android:src="@drawable/ic_contacts"
             app:shapeAppearanceOverlay="@style/CircleImage"
