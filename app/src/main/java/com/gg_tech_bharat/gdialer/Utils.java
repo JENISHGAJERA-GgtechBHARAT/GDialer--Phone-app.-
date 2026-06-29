@@ -130,13 +130,15 @@ public class Utils {
     public static void loadContactPhoto(Context context, String uri, android.widget.ImageView iv) {
         if (iv == null) return;
         if (uri == null || uri.isEmpty()) {
+            iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
             iv.setBackgroundResource(R.drawable.gray_circle);
             iv.setBackgroundTintList(android.content.res.ColorStateList.valueOf(context.getResources().getColor(R.color.divider_color)));
             iv.setImageResource(R.drawable.ic_contacts);
             iv.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
-            int paddingPx = (int) (8 * context.getResources().getDisplayMetrics().density);
+            int paddingPx = (int) (12 * context.getResources().getDisplayMetrics().density);
             iv.setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
         } else {
+            iv.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
             iv.setPadding(0, 0, 0, 0);
             iv.setBackground(null);
             iv.setImageTintList(null);
