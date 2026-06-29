@@ -147,6 +147,33 @@ public class Utils {
                     .override(480, 480) // High-fidelity size for "clear" images
                     .circleCrop()
                     .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                    .listener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
+                        @Override
+                        public boolean onLoadFailed(@androidx.annotation.Nullable com.bumptech.glide.load.engine.GlideException e, 
+                                                    Object model, 
+                                                    com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, 
+                                                    boolean isFirstResource) {
+                            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                                iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+                                iv.setBackgroundResource(R.drawable.gray_circle);
+                                iv.setBackgroundTintList(android.content.res.ColorStateList.valueOf(context.getResources().getColor(R.color.divider_color)));
+                                iv.setImageResource(R.drawable.ic_contacts);
+                                iv.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
+                                int paddingPx = (int) (8 * context.getResources().getDisplayMetrics().density);
+                                iv.setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
+                            });
+                            return false;
+                        }
+
+                        @Override
+                        public boolean onResourceReady(android.graphics.drawable.Drawable resource, 
+                                                       Object model, 
+                                                       com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, 
+                                                       com.bumptech.glide.load.DataSource dataSource, 
+                                                       boolean isFirstResource) {
+                            return false;
+                        }
+                    })
                     .into(iv);
         }
     }
