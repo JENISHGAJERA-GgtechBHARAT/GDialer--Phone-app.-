@@ -75,6 +75,7 @@ public class MainActivity extends AppCompatActivity {
             PermissionManager.requestPermissions(this);
         } else {
             checkDefaultDialer();
+            checkOverlayPermission();
         }
     }
 
@@ -83,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         if (PermissionManager.hasAllPermissions(this)) {
             checkDefaultDialer();
+            checkOverlayPermission();
         }
     }
 
@@ -202,6 +204,31 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (PermissionManager.hasAllPermissions(this)) checkDefaultDialer();
+        if (PermissionManager.hasAllPermissions(this)) {
+            checkDefaultDialer();
+            checkOverlayPermission();
+        }
+    }
+
+    private void checkOverlayPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!android.provider.Settings.canDrawOverlays(this)) {
+                new androidx.appcompat.app.AlertDialog.Builder(this)
+                        .setTitle("System Overlay Permission")
+                        .setMessage("GDialer needs the 'Display over other apps' permission to reliably show caller screens and answer dialogs on Oppo and Realme devices. Please enable it in the next screen.")
+                        .setPositiveButton("Grant Permission", (dialog, which) -> {
+                            try {
+                                Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                        Uri.parse("package:" + getPackageName()));
+                                startActivity(intent);
+                            } catch (Exception e) {
+                                Toast.makeText(this, "Could not open settings screen", Toast.LENGTH_SHORT).show();
+                            }
+                        })
+                        .setNegativeButton("Later", null)
+                        .setCancelable(false)
+                        .show();
+            }
+        }
     }
 }
