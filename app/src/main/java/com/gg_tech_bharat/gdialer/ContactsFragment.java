@@ -45,7 +45,7 @@ public class ContactsFragment extends Fragment {
     private TextView tvSelectedCount, tvSelectAllText;
     private OnBackPressedCallback onBackPressedCallback;
 
-    private static boolean sHasSyncedThisSession = false;
+    public static boolean sHasSyncedThisSession = false;
     private static final java.util.concurrent.ExecutorService syncExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r);
         t.setPriority(Thread.MIN_PRIORITY);
@@ -310,28 +310,81 @@ public class ContactsFragment extends Fragment {
 
     private void syncDeviceContacts() {
         if (sHasSyncedThisSession || ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) return;
+        triggerSyncDirectly(requireContext());
+    }
+
+    public static void triggerSyncDirectly(Context context) {
+        sHasSyncedThisSession = false;
         syncExecutor.execute(() -> {
-            try (Cursor cursor = requireContext().getContentResolver().query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, 
-                    new String[]{ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI, ContactsContract.CommonDataKinds.Phone.STARRED}, 
-                    null, null, null)) {
-                if (cursor != null) {
-                    ContactDao dao = database.contactDao();
-                    List<ContactModel> existing = dao.getAllContactsSync();
-                    java.util.Set<String> numbers = new java.util.HashSet<>();
-                    for (ContactModel c : existing) numbers.add(c.getNumber());
-                    List<ContactModel> toInsert = new ArrayList<>();
-                    while (cursor.moveToNext()) {
-                        String n = cursor.getString(1);
-                        if (n != null && !numbers.contains(n)) {
-                            toInsert.add(new ContactModel(cursor.getString(0), n, cursor.getString(2), cursor.getInt(3) == 1, false, "Synced"));
-                            if (toInsert.size() >= 50) {
-                                dao.insertAll(new ArrayList<>(toInsert));
-                                toInsert.clear();
+            try {
+                AppDatabase db = AppDatabase.getDatabase(context);
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) return;
+                try (Cursor cursor = context.getContentResolver().query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, 
+                        new String[]{
+                            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, // index 0
+                            ContactsContract.CommonDataKinds.Phone.NUMBER,       // index 1
+                            ContactsContract.CommonDataKinds.Phone.PHOTO_URI,    // index 2
+                            ContactsContract.CommonDataKinds.Phone.STARRED       // index 3
+                        }, 
+                        null, null, null)) {
+                    if (cursor != null) {
+                        ContactDao dao = db.contactDao();
+                        List<ContactModel> existing = dao.getAllContactsSync();
+                        
+                        java.util.Map<String, ContactModel> existingMap = new java.util.HashMap<>();
+                        for (ContactModel c : existing) {
+                            if (c.getNormalizedNumber() != null && !c.getNormalizedNumber().isEmpty()) {
+                                existingMap.put(c.getNormalizedNumber(), c);
                             }
                         }
+                        
+                        List<ContactModel> toInsert = new ArrayList<>();
+                        List<ContactModel> toUpdate = new ArrayList<>();
+                        
+                        while (cursor.moveToNext()) {
+                            String name = cursor.getString(0);
+                            String number = cursor.getString(1);
+                            String photoUri = cursor.getString(2);
+                            boolean isStarred = cursor.getInt(3) == 1;
+                            
+                            if (number == null) continue;
+                            String normalized = Utils.normalizePhoneNumber(number);
+                            if (normalized.isEmpty()) continue;
+                            
+                            if (existingMap.containsKey(normalized)) {
+                                ContactModel existingContact = existingMap.get(normalized);
+                                boolean changed = false;
+                                
+                                if (name != null && !name.equals(existingContact.getName())) {
+                                    existingContact.setName(name);
+                                    changed = true;
+                                }
+                                
+                                if (photoUri != null && !photoUri.equals(existingContact.getPhotoUri())) {
+                                    existingContact.setPhotoUri(photoUri);
+                                    changed = true;
+                                } else if (photoUri == null && existingContact.getPhotoUri() != null && "Synced".equals(existingContact.getNotes())) {
+                                    existingContact.setPhotoUri(null);
+                                    changed = true;
+                                }
+                                
+                                if (isStarred != existingContact.isFavorite()) {
+                                    existingContact.setFavorite(isStarred);
+                                    changed = true;
+                                }
+                                
+                                if (changed) {
+                                    toUpdate.add(existingContact);
+                                }
+                            } else {
+                                toInsert.add(new ContactModel(name, number, photoUri, isStarred, false, "Synced"));
+                            }
+                        }
+                        
+                        if (!toInsert.isEmpty()) dao.insertAll(toInsert);
+                        if (!toUpdate.isEmpty()) dao.updateAll(toUpdate);
+                        sHasSyncedThisSession = true;
                     }
-                    if (!toInsert.isEmpty()) dao.insertAll(toInsert);
-                    sHasSyncedThisSession = true;
                 }
             } catch (Exception e) { Log.e("ContactsFragment", "Sync error", e); }
         });

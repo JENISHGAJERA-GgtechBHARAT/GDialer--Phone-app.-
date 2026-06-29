@@ -163,6 +163,20 @@ public class Utils {
         return null;
     }
 
+    public static String queryContactPhotoUri(Context context, String number) {
+        if (number == null || number.isEmpty()) return null;
+        try {
+            android.net.Uri uri = android.net.Uri.withAppendedPath(android.provider.ContactsContract.PhoneLookup.CONTENT_FILTER_URI, android.net.Uri.encode(number));
+            String[] projection = new String[]{android.provider.ContactsContract.PhoneLookup.PHOTO_URI};
+            try (android.database.Cursor cursor = context.getContentResolver().query(uri, projection, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    return cursor.getString(0);
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
     public static String normalizePhoneNumber(String number) {
         if (number == null) return "";
         return number.replaceAll("[^0-9]", "");

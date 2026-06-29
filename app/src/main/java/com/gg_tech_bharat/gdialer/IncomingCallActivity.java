@@ -358,7 +358,18 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
                 });
             } else {
                 String systemName = Utils.queryContactName(this, phoneNumber);
-                if (systemName != null) { callerName = systemName; runOnUiThread(() -> { if (tvCallerName != null) tvCallerName.setText(callerName); }); }
+                String systemPhoto = Utils.queryContactPhotoUri(this, phoneNumber);
+                if (systemName != null) {
+                    callerName = systemName;
+                    runOnUiThread(() -> {
+                        if (tvCallerName != null) tvCallerName.setText(callerName);
+                    });
+                }
+                if (systemPhoto != null) {
+                    runOnUiThread(() -> {
+                        Utils.loadContactPhoto(this, systemPhoto, ivCallerPhoto);
+                    });
+                }
             }
         });
     }

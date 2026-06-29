@@ -534,7 +534,18 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
                 });
             } else {
                 String name = Utils.queryContactName(this, phoneNumber);
-                if (name != null) { callerName = name; runOnUiThread(() -> { if (tvCallerName != null) tvCallerName.setText(callerName); }); }
+                String systemPhoto = Utils.queryContactPhotoUri(this, phoneNumber);
+                if (name != null) {
+                    callerName = name;
+                    runOnUiThread(() -> {
+                        if (tvCallerName != null) tvCallerName.setText(callerName);
+                    });
+                }
+                if (systemPhoto != null) {
+                    runOnUiThread(() -> {
+                        Utils.loadContactPhoto(this, systemPhoto, ivCallerPhoto);
+                    });
+                }
             }
         });
     }

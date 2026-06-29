@@ -107,6 +107,7 @@ public class SettingsFragment extends Fragment {
                 if (context == null) return;
                 Utils.triggerHaptic(v);
                 Toast.makeText(context, "Syncing contacts...", Toast.LENGTH_SHORT).show();
+                ContactsFragment.triggerSyncDirectly(context);
                 new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
                     if (isAdded() && getContext() != null) {
                         Toast.makeText(getContext(), "Sync complete", Toast.LENGTH_SHORT).show();

@@ -386,7 +386,31 @@ public class InCallServiceImpl extends InCallService {
         AppDatabase.databaseWriteExecutor.execute(() -> {
             String name = Utils.queryContactName(this, number);
             final String finalName = (name != null) ? name : number;
-            
+
+            // Fetch photo URI (local database first, then fallback to system contacts lookup)
+            String photoUri = null;
+            try {
+                ContactModel contact = AppDatabase.getDatabase(this).contactDao().getContactByNormalizedNumber(Utils.normalizePhoneNumber(number));
+                if (contact != null) {
+                    photoUri = contact.getPhotoUri();
+                } else {
+                    photoUri = Utils.queryContactPhotoUri(this, number);
+                }
+            } catch (Exception ignored) {}
+
+            android.graphics.Bitmap photoBitmap = null;
+            if (photoUri != null && !photoUri.isEmpty()) {
+                try {
+                    photoBitmap = com.bumptech.glide.Glide.with(this)
+                            .asBitmap()
+                            .load(photoUri)
+                            .submit(120, 120) // standard notification icon size
+                            .get();
+                } catch (Exception ignored) {}
+            }
+
+            final android.graphics.Bitmap finalBitmap = photoBitmap;
+
             new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                 try {
                     Intent intent = new Intent(this, IncomingCallActivity.class)
@@ -418,9 +442,15 @@ public class InCallServiceImpl extends InCallService {
                             .setPriority(NotificationCompat.PRIORITY_MAX);
 
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        androidx.core.app.Person caller = new androidx.core.app.Person.Builder().setName(finalName).setImportant(true).build();
-                        builder.setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, declinePi, answerPi));
+                        androidx.core.app.Person.Builder personBuilder = new androidx.core.app.Person.Builder().setName(finalName).setImportant(true);
+                        if (finalBitmap != null) {
+                            personBuilder.setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(finalBitmap));
+                        }
+                        builder.setStyle(NotificationCompat.CallStyle.forIncomingCall(personBuilder.build(), declinePi, answerPi));
                     } else {
+                        if (finalBitmap != null) {
+                            builder.setLargeIcon(finalBitmap);
+                        }
                         builder.addAction(R.drawable.ic_phone, "Answer", answerPi);
                         builder.addAction(R.drawable.ic_phone_end, "Decline", declinePi);
                     }
@@ -432,112 +462,143 @@ public class InCallServiceImpl extends InCallService {
     }
 
     private void showActiveCallNotification(String number) {
-        // High-speed name resolution from cache
-        String name = getContactName(number);
-        final String finalName = (name != null) ? name : number;
+        AppDatabase.databaseWriteExecutor.execute(() -> {
+            String name = getContactName(number);
+            final String finalName = (name != null) ? name : number;
 
-        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            // Fetch photo URI (local database first, then fallback to system contacts lookup)
+            String photoUri = null;
             try {
-                if (CallManager.sCurrentCall == null || CallManager.sCurrentCall.getState() == Call.STATE_DISCONNECTED) return;
+                ContactModel contact = AppDatabase.getDatabase(this).contactDao().getContactByNormalizedNumber(Utils.normalizePhoneNumber(number));
+                if (contact != null) {
+                    photoUri = contact.getPhotoUri();
+                } else {
+                    photoUri = Utils.queryContactPhotoUri(this, number);
+                }
+            } catch (Exception ignored) {}
 
-                Intent intent = new Intent(this, OngoingCallActivity.class).putExtra("EXTRA_NUMBER", number).putExtra("EXTRA_NAME", finalName);
-                PendingIntent pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                
-                Intent endIntent = new Intent(ACTION_END_CALL);
-                endIntent.setPackage(getPackageName());
-                PendingIntent endPi = PendingIntent.getBroadcast(this, 1, endIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            android.graphics.Bitmap photoBitmap = null;
+            if (photoUri != null && !photoUri.isEmpty()) {
+                try {
+                    photoBitmap = com.bumptech.glide.Glide.with(this)
+                            .asBitmap()
+                            .load(photoUri)
+                            .submit(120, 120) // standard notification icon size
+                            .get();
+                } catch (Exception ignored) {}
+            }
 
-                Intent muteIntent = new Intent(ACTION_MUTE);
-                muteIntent.setPackage(getPackageName());
-                PendingIntent mutePi = PendingIntent.getBroadcast(this, 4, muteIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            final android.graphics.Bitmap finalBitmap = photoBitmap;
 
-                Intent speakerIntent = new Intent(ACTION_SPEAKER);
-                speakerIntent.setPackage(getPackageName());
-                PendingIntent speakerPi = PendingIntent.getBroadcast(this, 5, speakerIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                try {
+                    if (CallManager.sCurrentCall == null || CallManager.sCurrentCall.getState() == Call.STATE_DISCONNECTED) return;
 
-                // CUSTOM REMOTE VIEWS
-                RemoteViews rv = new RemoteViews(getPackageName(), R.layout.notification_ongoing_call);
-                rv.setTextViewText(R.id.tvNotifOngoingName, finalName);
-                rv.setOnClickPendingIntent(R.id.btnNotifEnd, endPi);
-                rv.setOnClickPendingIntent(R.id.btnNotifMute, mutePi);
-                rv.setOnClickPendingIntent(R.id.btnNotifSpeaker, speakerPi);
+                    Intent intent = new Intent(this, OngoingCallActivity.class).putExtra("EXTRA_NUMBER", number).putExtra("EXTRA_NAME", finalName);
+                    PendingIntent pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                    
+                    Intent endIntent = new Intent(ACTION_END_CALL);
+                    endIntent.setPackage(getPackageName());
+                    PendingIntent endPi = PendingIntent.getBroadcast(this, 1, endIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-                // HD and WiFi Indicator update for Notification
-                if (CallManager.sCurrentCall != null) {
-                    Call.Details details = CallManager.sCurrentCall.getDetails();
-                    if (details != null) {
-                        int props = details.getCallProperties();
-                        boolean isWifi = (props & Call.Details.PROPERTY_WIFI) != 0;
-                        boolean isHd = !isWifi && (props & Call.Details.PROPERTY_HIGH_DEF_AUDIO) != 0;
-                        
-                        rv.setTextViewText(R.id.tvNotifHd, "VoLTE");
-                        rv.setViewVisibility(R.id.tvNotifHd, isHd ? View.VISIBLE : View.GONE);
-                        rv.setTextViewText(R.id.tvNotifWifi, "VoWiFi");
-                        rv.setViewVisibility(R.id.tvNotifWifi, isWifi ? View.VISIBLE : View.GONE);
+                    Intent muteIntent = new Intent(ACTION_MUTE);
+                    muteIntent.setPackage(getPackageName());
+                    PendingIntent mutePi = PendingIntent.getBroadcast(this, 4, muteIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+                    Intent speakerIntent = new Intent(ACTION_SPEAKER);
+                    speakerIntent.setPackage(getPackageName());
+                    PendingIntent speakerPi = PendingIntent.getBroadcast(this, 5, speakerIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+                    // CUSTOM REMOTE VIEWS
+                    RemoteViews rv = new RemoteViews(getPackageName(), R.layout.notification_ongoing_call);
+                    rv.setTextViewText(R.id.tvNotifOngoingName, finalName);
+                    rv.setOnClickPendingIntent(R.id.btnNotifEnd, endPi);
+                    rv.setOnClickPendingIntent(R.id.btnNotifMute, mutePi);
+                    rv.setOnClickPendingIntent(R.id.btnNotifSpeaker, speakerPi);
+
+                    // HD and WiFi Indicator update for Notification
+                    if (CallManager.sCurrentCall != null) {
+                        Call.Details details = CallManager.sCurrentCall.getDetails();
+                        if (details != null) {
+                            int props = details.getCallProperties();
+                            boolean isWifi = (props & Call.Details.PROPERTY_WIFI) != 0;
+                            boolean isHd = !isWifi && (props & Call.Details.PROPERTY_HIGH_DEF_AUDIO) != 0;
+                            
+                            rv.setTextViewText(R.id.tvNotifHd, "VoLTE");
+                            rv.setViewVisibility(R.id.tvNotifHd, isHd ? View.VISIBLE : View.GONE);
+                            rv.setTextViewText(R.id.tvNotifWifi, "VoWiFi");
+                            rv.setViewVisibility(R.id.tvNotifWifi, isWifi ? View.VISIBLE : View.GONE);
+                        }
                     }
-                }
 
-                CallAudioState audioState = getCallAudioState();
-                String speakerLabelText;
-                int speakerIcon;
-                String muteLabelText;
-                int muteIcon = R.drawable.ic_mic;
-                
-                if (audioState != null && audioState.getRoute() == CallAudioState.ROUTE_SPEAKER) {
-                    rv.setInt(R.id.btnNotifSpeaker, "setBackgroundResource", R.drawable.blue_circle);
-                    speakerLabelText = "Speaker On";
-                    speakerIcon = R.drawable.ic_speaker;
-                } else if (audioState != null && audioState.getRoute() == CallAudioState.ROUTE_BLUETOOTH) {
-                    speakerIcon = R.drawable.ic_bluetooth;
-                    rv.setImageViewResource(R.id.btnNotifSpeaker, R.drawable.ic_bluetooth);
-                    rv.setInt(R.id.btnNotifSpeaker, "setBackgroundResource", R.drawable.blue_circle);
-                    speakerLabelText = "Bluetooth";
-                } else {
-                    speakerIcon = R.drawable.ic_speaker;
-                    rv.setImageViewResource(R.id.btnNotifSpeaker, R.drawable.ic_speaker);
-                    rv.setInt(R.id.btnNotifSpeaker, "setBackgroundResource", 0);
-                    speakerLabelText = "Speaker";
-                }
+                    CallAudioState audioState = getCallAudioState();
+                    String speakerLabelText;
+                    int speakerIcon;
+                    String muteLabelText;
+                    int muteIcon = R.drawable.ic_mic;
+                    
+                    if (audioState != null && audioState.getRoute() == CallAudioState.ROUTE_SPEAKER) {
+                        rv.setInt(R.id.btnNotifSpeaker, "setBackgroundResource", R.drawable.blue_circle);
+                        speakerLabelText = "Speaker On";
+                        speakerIcon = R.drawable.ic_speaker;
+                    } else if (audioState != null && audioState.getRoute() == CallAudioState.ROUTE_BLUETOOTH) {
+                        speakerIcon = R.drawable.ic_bluetooth;
+                        rv.setImageViewResource(R.id.btnNotifSpeaker, R.drawable.ic_bluetooth);
+                        rv.setInt(R.id.btnNotifSpeaker, "setBackgroundResource", R.drawable.blue_circle);
+                        speakerLabelText = "Bluetooth";
+                    } else {
+                        speakerIcon = R.drawable.ic_speaker;
+                        rv.setImageViewResource(R.id.btnNotifSpeaker, R.drawable.ic_speaker);
+                        rv.setInt(R.id.btnNotifSpeaker, "setBackgroundResource", 0);
+                        speakerLabelText = "Speaker";
+                    }
 
-                if (audioState != null && audioState.isMuted()) {
-                    rv.setInt(R.id.btnNotifMute, "setBackgroundResource", R.drawable.gray_circle);
-                    muteLabelText = "Unmute";
-                } else {
-                    rv.setInt(R.id.btnNotifMute, "setBackgroundResource", 0);
-                    muteLabelText = "Mute";
-                }
-                
-                long connectTime = (CallManager.sCurrentCall != null) ? CallManager.sCurrentCall.getDetails().getConnectTimeMillis() : 0;
-                if (connectTime > 0) {
-                    long base = SystemClock.elapsedRealtime() - (System.currentTimeMillis() - connectTime);
-                    rv.setChronometer(R.id.chronometerNotif, base, null, true);
-                }
+                    if (audioState != null && audioState.isMuted()) {
+                        rv.setInt(R.id.btnNotifMute, "setBackgroundResource", R.drawable.gray_circle);
+                        muteLabelText = "Unmute";
+                    } else {
+                        rv.setInt(R.id.btnNotifMute, "setBackgroundResource", 0);
+                        muteLabelText = "Mute";
+                    }
+                    
+                    long connectTime = (CallManager.sCurrentCall != null) ? CallManager.sCurrentCall.getDetails().getConnectTimeMillis() : 0;
+                    if (connectTime > 0) {
+                        long base = SystemClock.elapsedRealtime() - (System.currentTimeMillis() - connectTime);
+                        rv.setChronometer(R.id.chronometerNotif, base, null, true);
+                    }
 
-                NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID_DEFAULT);
+                    NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID_DEFAULT);
 
-                builder.setSmallIcon(R.drawable.ic_phone)
-                        .setContentIntent(pi)
-                        .setOngoing(true)
-                        .setCategory(NotificationCompat.CATEGORY_CALL)
-                        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                        .setPriority(NotificationCompat.PRIORITY_HIGH)
-                        .setOnlyAlertOnce(true);
+                    builder.setSmallIcon(R.drawable.ic_phone)
+                            .setContentIntent(pi)
+                            .setOngoing(true)
+                            .setCategory(NotificationCompat.CATEGORY_CALL)
+                            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                            .setPriority(NotificationCompat.PRIORITY_HIGH)
+                            .setOnlyAlertOnce(true);
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    androidx.core.app.Person caller = new androidx.core.app.Person.Builder().setName(finalName).setImportant(true).build();
-                    builder.setStyle(NotificationCompat.CallStyle.forOngoingCall(caller, endPi));
-                    builder.addAction(speakerIcon, speakerLabelText, speakerPi);
-                    builder.addAction(muteIcon, muteLabelText, mutePi);
-                } else {
-                    builder.setCustomContentView(rv)
-                            .setCustomBigContentView(rv);
-                    builder.addAction(speakerIcon, speakerLabelText, speakerPi);
-                    builder.addAction(muteIcon, muteLabelText, mutePi);
-                    builder.addAction(R.drawable.ic_phone_end, "End", endPi);
-                }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        androidx.core.app.Person.Builder personBuilder = new androidx.core.app.Person.Builder().setName(finalName).setImportant(true);
+                        if (finalBitmap != null) {
+                            personBuilder.setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(finalBitmap));
+                        }
+                        builder.setStyle(NotificationCompat.CallStyle.forOngoingCall(personBuilder.build(), endPi));
+                        builder.addAction(speakerIcon, speakerLabelText, speakerPi);
+                        builder.addAction(muteIcon, muteLabelText, mutePi);
+                    } else {
+                        if (finalBitmap != null) {
+                            builder.setLargeIcon(finalBitmap);
+                        }
+                        builder.setCustomContentView(rv)
+                                .setCustomBigContentView(rv);
+                        builder.addAction(speakerIcon, speakerLabelText, speakerPi);
+                        builder.addAction(muteIcon, muteLabelText, mutePi);
+                        builder.addAction(R.drawable.ic_phone_end, "End", endPi);
+                    }
 
-                startForegroundCompat(builder.build());
-            } catch (Exception e) { Log.e("InCallServiceImpl", "Active notif crash", e); }
+                    startForegroundCompat(builder.build());
+                } catch (Exception e) { Log.e("InCallServiceImpl", "Active notif crash", e); }
+            });
         });
     }
 
