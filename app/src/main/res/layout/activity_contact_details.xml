@@ -35,8 +35,7 @@
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
-                        android:src="@drawable/ic_backspace"
-                        android:rotation="180"
+                        android:src="?attr/actionModeCloseDrawable"
                         app:tint="@color/text_primary" />
 
                     <ImageButton
@@ -194,11 +193,12 @@
             android:clickable="true"
             android:focusable="true"
             android:background="?attr/selectableItemBackground">
+
             <ImageView
                 android:id="@+id/ivBottomBlockIcon"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:src="@drawable/ic_info"
+                android:src="@android:drawable/presence_offline"
                 app:tint="@color/text_primary" />
             <TextView
                 android:id="@+id/tvBottomBlockText"
@@ -221,10 +221,11 @@
             android:clickable="true"
             android:focusable="true"
             android:background="?attr/selectableItemBackground">
+
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:src="@drawable/ic_backspace"
+                android:src="@android:drawable/ic_menu_delete"
                 app:tint="@color/accent_red" />
             <TextView
                 android:layout_width="wrap_content"
