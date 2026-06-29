@@ -409,10 +409,11 @@ public class InCallServiceImpl extends InCallService {
                     builder.setSmallIcon(R.drawable.ic_phone)
                             .setContentTitle("Incoming Call")
                             .setContentText(finalName)
+                            .setContentIntent(fullScreenPi)
                             .setFullScreenIntent(fullScreenPi, true)
                             .setOngoing(true)
                             .setCategory(NotificationCompat.CATEGORY_CALL)
-                            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+                            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                             .setAutoCancel(false)
                             .setPriority(NotificationCompat.PRIORITY_MAX);
 

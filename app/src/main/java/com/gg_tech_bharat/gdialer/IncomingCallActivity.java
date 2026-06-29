@@ -648,6 +648,11 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
         finish(); overridePendingTransition(0, R.anim.premium_fade_out);
     }
 
+    @Override
+    public void onBackPressed() {
+        moveTaskToBack(true);
+    }
+
     @Override protected void onDestroy() {
         CallManager.unregisterListener(callManagerListener);
         try { unregisterReceiver(disconnectReceiver); } catch (Exception ignored) {}

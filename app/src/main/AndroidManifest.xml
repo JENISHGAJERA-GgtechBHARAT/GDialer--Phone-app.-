@@ -98,6 +98,7 @@
             android:turnScreenOn="true"
             android:excludeFromRecents="true"
             android:exported="false"
+            android:screenOrientation="portrait"
             android:launchMode="singleInstance" />
 
         <activity
@@ -107,6 +108,7 @@
             android:turnScreenOn="true"
             android:excludeFromRecents="true"
             android:exported="false"
+            android:screenOrientation="portrait"
             android:launchMode="singleInstance" />
 
         <service
