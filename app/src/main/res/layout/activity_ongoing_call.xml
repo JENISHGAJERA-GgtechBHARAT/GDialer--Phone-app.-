@@ -174,8 +174,12 @@
             android:layout_gravity="center"
             android:elevation="4dp"
             android:outlineProvider="background"
-            android:scaleType="centerCrop"
+            android:scaleType="fitCenter"
+            android:background="@drawable/gray_circle"
+            android:backgroundTint="@color/divider_color"
             android:src="@drawable/ic_contacts"
+            app:tint="@color/white"
+            android:padding="32dp"
             app:shapeAppearanceOverlay="@style/CircleImage"
             app:strokeColor="@color/divider_color"
             app:strokeWidth="2dp" />
