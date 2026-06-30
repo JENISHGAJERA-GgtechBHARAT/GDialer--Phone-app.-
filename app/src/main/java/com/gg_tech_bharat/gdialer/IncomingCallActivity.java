@@ -661,7 +661,14 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
 
     @Override
     public void onBackPressed() {
-        moveTaskToBack(true);
+        try {
+            Intent intent = new Intent(Intent.ACTION_MAIN);
+            intent.addCategory(Intent.CATEGORY_HOME);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        } catch (Exception e) {
+            moveTaskToBack(true);
+        }
     }
 
     @Override protected void onDestroy() {

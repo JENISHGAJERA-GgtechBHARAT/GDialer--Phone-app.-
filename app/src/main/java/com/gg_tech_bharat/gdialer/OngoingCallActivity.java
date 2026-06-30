@@ -957,7 +957,14 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     private void registerDisconnectReceiver() { IntentFilter f = new IntentFilter(); f.addAction("com.gg_tech_bharat.gdialer.CALL_DISCONNECTED"); f.addAction("com.gg_tech_bharat.gdialer.VIDEO_STATE_CHANGED"); try { androidx.core.content.ContextCompat.registerReceiver(this, disconnectReceiver, f, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED); } catch (Exception ignored) {} }
     @Override
     public void onBackPressed() {
-        moveTaskToBack(true);
+        try {
+            Intent intent = new Intent(Intent.ACTION_MAIN);
+            intent.addCategory(Intent.CATEGORY_HOME);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        } catch (Exception e) {
+            moveTaskToBack(true);
+        }
     }
 
     @Override protected void onDestroy() {
