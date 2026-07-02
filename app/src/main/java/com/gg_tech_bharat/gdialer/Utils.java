@@ -157,7 +157,13 @@ public class Utils {
             
             android.graphics.drawable.Drawable baseDrawable = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_contacts);
             if (baseDrawable != null) {
-                int insetPx = (int) (8 * context.getResources().getDisplayMetrics().density);
+                int insetPx;
+                int viewWidth = iv.getLayoutParams() != null ? iv.getLayoutParams().width : 0;
+                if (viewWidth > 0) {
+                    insetPx = viewWidth / 6;
+                } else {
+                    insetPx = (int) (8 * context.getResources().getDisplayMetrics().density);
+                }
                 android.graphics.drawable.InsetDrawable insetDrawable = new android.graphics.drawable.InsetDrawable(baseDrawable, insetPx);
                 iv.setImageDrawable(insetDrawable);
             } else {
@@ -187,7 +193,13 @@ public class Utils {
                                     iv.setBackgroundColor(context.getResources().getColor(R.color.divider_color));
                                     android.graphics.drawable.Drawable baseDrawable = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_contacts);
                                     if (baseDrawable != null) {
-                                        int insetPx = (int) (8 * context.getResources().getDisplayMetrics().density);
+                                        int insetPx;
+                                        int viewWidth = iv.getLayoutParams() != null ? iv.getLayoutParams().width : 0;
+                                        if (viewWidth > 0) {
+                                            insetPx = viewWidth / 6;
+                                        } else {
+                                            insetPx = (int) (8 * context.getResources().getDisplayMetrics().density);
+                                        }
                                         android.graphics.drawable.InsetDrawable insetDrawable = new android.graphics.drawable.InsetDrawable(baseDrawable, insetPx);
                                         iv.setImageDrawable(insetDrawable);
                                     } else {
