@@ -234,6 +234,10 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        if (getOnBackPressedDispatcher().hasEnabledCallbacks()) {
+            super.onBackPressed();
+            return;
+        }
         moveTaskToBack(true);
     }
 }
