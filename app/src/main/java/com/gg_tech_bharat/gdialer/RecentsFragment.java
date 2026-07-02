@@ -125,13 +125,15 @@ public class RecentsFragment extends Fragment {
                     layoutRecentSearchHeader.setVisibility(query.isEmpty() && etSearch.hasFocus() ? View.VISIBLE : View.GONE);
                 }
 
-                r = () -> {
-                    if (!query.isEmpty()) {
+                if (query.isEmpty()) {
+                    processAndDisplayRecents();
+                } else {
+                    r = () -> {
                         saveRecentSearch(query);
-                    }
-                    searchContactsAndRecents(query);
-                };
-                h.postDelayed(r, 400);
+                        searchContactsAndRecents(query);
+                    };
+                    h.postDelayed(r, 400);
+                }
                 updateOnBackPressedCallbackState();
             }
             @Override public void afterTextChanged(Editable s) {}

@@ -127,17 +127,17 @@ public class ContactsFragment extends Fragment {
                     layoutRecentContactsHeader.setVisibility(query.isEmpty() && etSearch.hasFocus() ? View.VISIBLE : View.GONE);
                 }
 
-                r = () -> {
-                    if (query.isEmpty()) {
-                        loadDefaultContacts();
-                    } else {
+                if (query.isEmpty()) {
+                    loadDefaultContacts();
+                } else {
+                    r = () -> {
                         AppDatabase.databaseWriteExecutor.execute(() -> {
                             List<ContactModel> filtered = database.contactDao().searchContactsWithRanking("%" + query + "%", query + "%");
                             if (getActivity() != null) getActivity().runOnUiThread(() -> contactsAdapter.setContacts(filtered));
                         });
-                    }
-                };
-                h.postDelayed(r, 250);
+                    };
+                    h.postDelayed(r, 250);
+                }
                 updateOnBackPressedCallbackState();
             }
             @Override public void afterTextChanged(Editable s) {}
