@@ -231,4 +231,24 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
+    @Override
+    public void onBackPressed() {
+        int currentTab = viewPager.getCurrentItem();
+        if (currentTab != 0) {
+            switchToTab(0);
+            return;
+        }
+
+        Fragment currentFragment = getSupportFragmentManager().findFragmentByTag("f0");
+        if (currentFragment instanceof KeypadFragment) {
+            KeypadFragment keypadFrag = (KeypadFragment) currentFragment;
+            if (keypadFrag.hasDigits()) {
+                keypadFrag.clearDigits();
+                return;
+            }
+        }
+
+        moveTaskToBack(true);
+    }
 }

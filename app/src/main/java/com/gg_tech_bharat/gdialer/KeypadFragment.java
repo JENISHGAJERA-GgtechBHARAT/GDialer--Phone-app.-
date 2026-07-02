@@ -239,7 +239,11 @@ public class KeypadFragment extends Fragment implements View.OnClickListener {
         if (dialedDigits.length() > 0) { dialedDigits.deleteCharAt(dialedDigits.length() - 1); tvDialedNumber.setText(dialedDigits.toString()); }
     }
 
-    private void clearDigits() { dialedDigits.setLength(0); tvDialedNumber.setText(""); }
+    public boolean hasDigits() {
+        return dialedDigits != null && dialedDigits.length() > 0;
+    }
+
+    public void clearDigits() { dialedDigits.setLength(0); tvDialedNumber.setText(""); }
 
     public void setDialedNumber(String number) {
         if (number == null) return;
