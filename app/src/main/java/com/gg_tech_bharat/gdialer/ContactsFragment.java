@@ -80,7 +80,7 @@ public class ContactsFragment extends Fragment {
         contactsAdapter.setOnSelectionModeListener((isSelectionMode, selectedCount) -> {
             layoutSelectionBar.setVisibility(isSelectionMode ? View.VISIBLE : View.GONE);
             tvSelectedCount.setText(String.format(java.util.Locale.getDefault(), "%d selected", selectedCount));
-            onBackPressedCallback.setEnabled(isSelectionMode);
+            updateOnBackPressedCallbackState();
             tvSelectAllText.setText(selectedCount == contactsAdapter.getItemCount() && selectedCount > 0 ? "Deselect All" : "Select All");
         });
 
@@ -138,6 +138,7 @@ public class ContactsFragment extends Fragment {
                     }
                 };
                 h.postDelayed(r, 250);
+                updateOnBackPressedCallbackState();
             }
             @Override public void afterTextChanged(Editable s) {}
         });
@@ -149,6 +150,7 @@ public class ContactsFragment extends Fragment {
             if (hasFocus && etSearch.getText().toString().isEmpty()) {
                 loadRecentContactsForSearch();
             }
+            updateOnBackPressedCallbackState();
         });
 
         if (btnCloseAllRecentContacts != null) {
@@ -301,9 +303,25 @@ public class ContactsFragment extends Fragment {
         });
     }
 
+    private void updateOnBackPressedCallbackState() {
+        boolean shouldHandle = contactsAdapter.isSelectionMode() 
+                || (etSearch != null && (etSearch.hasFocus() || !etSearch.getText().toString().isEmpty()));
+        onBackPressedCallback.setEnabled(shouldHandle);
+    }
+
     private void setupOnBackPressedCallback() {
         onBackPressedCallback = new OnBackPressedCallback(false) {
-            @Override public void handleOnBackPressed() { if (contactsAdapter.isSelectionMode()) contactsAdapter.setSelectionMode(false); }
+            @Override public void handleOnBackPressed() { 
+                if (contactsAdapter.isSelectionMode()) {
+                    contactsAdapter.setSelectionMode(false);
+                } else if (etSearch != null && (!etSearch.getText().toString().isEmpty() || etSearch.hasFocus())) {
+                    etSearch.setText("");
+                    etSearch.clearFocus();
+                    android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+                    if (imm != null) imm.hideSoftInputFromWindow(etSearch.getWindowToken(), 0);
+                }
+                updateOnBackPressedCallbackState();
+            }
         };
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), onBackPressedCallback);
     }

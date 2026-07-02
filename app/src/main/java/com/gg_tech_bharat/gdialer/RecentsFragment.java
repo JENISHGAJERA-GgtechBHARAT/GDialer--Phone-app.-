@@ -79,7 +79,7 @@ public class RecentsFragment extends Fragment {
         adapter.setOnSelectionModeListener((isSelectionMode, selectedCount) -> {
             layoutSelectionBar.setVisibility(isSelectionMode ? View.VISIBLE : View.GONE);
             tvSelectedCount.setText(String.format(java.util.Locale.getDefault(), "%d selected", selectedCount));
-            onBackPressedCallback.setEnabled(isSelectionMode);
+            updateOnBackPressedCallbackState();
             tvSelectAllText.setText(selectedCount == adapter.getItemCount() && selectedCount > 0 ? "Deselect All" : "Select All");
         });
 
@@ -132,6 +132,7 @@ public class RecentsFragment extends Fragment {
                     searchContactsAndRecents(query);
                 };
                 h.postDelayed(r, 400);
+                updateOnBackPressedCallbackState();
             }
             @Override public void afterTextChanged(Editable s) {}
         });
@@ -143,6 +144,7 @@ public class RecentsFragment extends Fragment {
             if (hasFocus && etSearch.getText().toString().isEmpty()) {
                 loadRecentSearches();
             }
+            updateOnBackPressedCallbackState();
         });
 
         if (btnCloseAllSearch != null) {
@@ -295,9 +297,25 @@ public class RecentsFragment extends Fragment {
         });
     }
 
+    private void updateOnBackPressedCallbackState() {
+        boolean shouldHandle = adapter.isSelectionMode() 
+                || (etSearch != null && (etSearch.hasFocus() || !etSearch.getText().toString().isEmpty()));
+        onBackPressedCallback.setEnabled(shouldHandle);
+    }
+
     private void setupOnBackPressedCallback() {
         onBackPressedCallback = new OnBackPressedCallback(false) {
-            @Override public void handleOnBackPressed() { if (adapter.isSelectionMode()) adapter.setSelectionMode(false); }
+            @Override public void handleOnBackPressed() { 
+                if (adapter.isSelectionMode()) {
+                    adapter.setSelectionMode(false);
+                } else if (etSearch != null && (!etSearch.getText().toString().isEmpty() || etSearch.hasFocus())) {
+                    etSearch.setText("");
+                    etSearch.clearFocus();
+                    android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+                    if (imm != null) imm.hideSoftInputFromWindow(etSearch.getWindowToken(), 0);
+                }
+                updateOnBackPressedCallbackState();
+            }
         };
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), onBackPressedCallback);
     }

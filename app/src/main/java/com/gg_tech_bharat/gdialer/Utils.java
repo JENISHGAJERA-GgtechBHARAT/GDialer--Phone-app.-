@@ -154,7 +154,11 @@ public class Utils {
         } else {
             iv.setTag(R.id.view_tag_photo_uri, uri);
             iv.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-            iv.setPadding(0, 0, 0, 0);
+            int strokePadding = 0;
+            if (iv instanceof com.google.android.material.imageview.ShapeableImageView) {
+                strokePadding = (int) ((com.google.android.material.imageview.ShapeableImageView) iv).getStrokeWidth();
+            }
+            iv.setPadding(strokePadding, strokePadding, strokePadding, strokePadding);
             iv.setBackground(null);
             iv.setImageTintList(null);
             com.bumptech.glide.Glide.with(context)
