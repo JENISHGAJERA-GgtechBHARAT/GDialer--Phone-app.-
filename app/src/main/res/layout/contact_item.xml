@@ -40,7 +40,9 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/cbSelect"
             app:layout_constraintTop_toTopOf="parent"
-            app:shapeAppearanceOverlay="@style/CircleImage" />
+            app:shapeAppearanceOverlay="@style/CircleImage"
+            app:strokeColor="@color/divider_color"
+            app:strokeWidth="1dp" />
 
         <!-- Name & Number -->
         <LinearLayout
