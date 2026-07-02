@@ -142,25 +142,35 @@ public class Utils {
             iv.setOutlineProvider(CIRCULAR_OUTLINE_PROVIDER);
             iv.setClipToOutline(true);
         }
+
+        int strokePadding = 0;
+        if (iv instanceof com.google.android.material.imageview.ShapeableImageView) {
+            strokePadding = (int) ((com.google.android.material.imageview.ShapeableImageView) iv).getStrokeWidth();
+        }
+        iv.setPadding(strokePadding, strokePadding, strokePadding, strokePadding);
+
         if (uri == null || uri.isEmpty()) {
             iv.setTag(R.id.view_tag_photo_uri, null);
-            iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-            iv.setBackgroundResource(R.drawable.gray_circle);
-            iv.setBackgroundTintList(android.content.res.ColorStateList.valueOf(context.getResources().getColor(R.color.divider_color)));
-            iv.setImageResource(R.drawable.ic_contacts);
+            iv.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+            iv.setBackgroundColor(context.getResources().getColor(R.color.divider_color));
+            iv.setBackgroundTintList(null);
+            
+            android.graphics.drawable.Drawable baseDrawable = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_contacts);
+            if (baseDrawable != null) {
+                int insetPx = (int) (8 * context.getResources().getDisplayMetrics().density);
+                android.graphics.drawable.InsetDrawable insetDrawable = new android.graphics.drawable.InsetDrawable(baseDrawable, insetPx);
+                iv.setImageDrawable(insetDrawable);
+            } else {
+                iv.setImageResource(R.drawable.ic_contacts);
+            }
             iv.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
-            int paddingPx = (int) (8 * context.getResources().getDisplayMetrics().density);
-            iv.setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
         } else {
             iv.setTag(R.id.view_tag_photo_uri, uri);
             iv.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-            int strokePadding = 0;
-            if (iv instanceof com.google.android.material.imageview.ShapeableImageView) {
-                strokePadding = (int) ((com.google.android.material.imageview.ShapeableImageView) iv).getStrokeWidth();
-            }
-            iv.setPadding(strokePadding, strokePadding, strokePadding, strokePadding);
-            iv.setBackground(null);
+            iv.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+            iv.setBackgroundTintList(null);
             iv.setImageTintList(null);
+            
             com.bumptech.glide.Glide.with(context)
                     .load(uri)
                     .override(480, 480) // High-fidelity size for "clear" images
@@ -174,13 +184,16 @@ public class Utils {
                                                     boolean isFirstResource) {
                             new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                                 if (uri.equals(iv.getTag(R.id.view_tag_photo_uri))) {
-                                    iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-                                    iv.setBackgroundResource(R.drawable.gray_circle);
-                                    iv.setBackgroundTintList(android.content.res.ColorStateList.valueOf(context.getResources().getColor(R.color.divider_color)));
-                                    iv.setImageResource(R.drawable.ic_contacts);
+                                    iv.setBackgroundColor(context.getResources().getColor(R.color.divider_color));
+                                    android.graphics.drawable.Drawable baseDrawable = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_contacts);
+                                    if (baseDrawable != null) {
+                                        int insetPx = (int) (8 * context.getResources().getDisplayMetrics().density);
+                                        android.graphics.drawable.InsetDrawable insetDrawable = new android.graphics.drawable.InsetDrawable(baseDrawable, insetPx);
+                                        iv.setImageDrawable(insetDrawable);
+                                    } else {
+                                        iv.setImageResource(R.drawable.ic_contacts);
+                                    }
                                     iv.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
-                                    int paddingPx = (int) (8 * context.getResources().getDisplayMetrics().density);
-                                    iv.setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
                                 }
                             });
                             return false;
