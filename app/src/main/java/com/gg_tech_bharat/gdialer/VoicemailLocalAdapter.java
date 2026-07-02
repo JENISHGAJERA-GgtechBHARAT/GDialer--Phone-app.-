@@ -67,6 +67,16 @@ public class VoicemailLocalAdapter extends RecyclerView.Adapter<VoicemailLocalAd
         holder.tvNumber.setText(voicemail.getPhoneNumber());
         holder.tvTime.setText(Utils.formatTimestamp(voicemail.getTimestamp()));
         holder.tvDuration.setText(Utils.formatDuration(voicemail.getDuration()));
+
+        String number = voicemail.getPhoneNumber();
+        String photoUri = null;
+        if (number != null && !number.isEmpty()) {
+            ContactModel contact = ContactCache.getContactByNumber(number);
+            if (contact != null) {
+                photoUri = contact.getPhotoUri();
+            }
+        }
+        Utils.loadContactPhoto(context, photoUri, holder.ivAvatar);
         
         holder.unreadIndicator.setVisibility(voicemail.isRead() ? View.GONE : View.VISIBLE);
         holder.ivStar.setImageResource(voicemail.isStarred() ? R.drawable.ic_star : R.drawable.ic_star_border);

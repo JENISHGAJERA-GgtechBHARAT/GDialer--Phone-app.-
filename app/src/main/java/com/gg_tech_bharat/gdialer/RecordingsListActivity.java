@@ -176,6 +176,16 @@ public class RecordingsListActivity extends AppCompatActivity {
             holder.tvTime.setText(Utils.formatTimestamp(recording.getTimestamp()));
             holder.tvDuration.setText(Utils.formatDuration(recording.getDuration()));
 
+            String number = recording.getPhoneNumber();
+            String photoUri = null;
+            if (number != null && !number.isEmpty()) {
+                ContactModel contact = ContactCache.getContactByNumber(number);
+                if (contact != null) {
+                    photoUri = contact.getPhotoUri();
+                }
+            }
+            Utils.loadContactPhoto(context, photoUri, holder.ivAvatar);
+
             boolean isExpanded = position == expandedPosition;
             holder.layoutPlayer.setVisibility(isExpanded ? View.VISIBLE : View.GONE);
 

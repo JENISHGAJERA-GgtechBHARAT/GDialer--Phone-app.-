@@ -20,6 +20,15 @@ import java.util.Locale;
 
 public class Utils {
 
+    private static final android.view.ViewOutlineProvider CIRCULAR_OUTLINE_PROVIDER = 
+            android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP ? 
+            new android.view.ViewOutlineProvider() {
+                @Override
+                public void getOutline(android.view.View view, android.graphics.Outline outline) {
+                    outline.setOval(0, 0, view.getWidth(), view.getHeight());
+                }
+            } : null;
+
     public static void triggerHaptic(View view) {
         if (view != null) {
             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
@@ -129,6 +138,10 @@ public class Utils {
 
     public static void loadContactPhoto(Context context, String uri, android.widget.ImageView iv) {
         if (iv == null) return;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            iv.setOutlineProvider(CIRCULAR_OUTLINE_PROVIDER);
+            iv.setClipToOutline(true);
+        }
         if (uri == null || uri.isEmpty()) {
             iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
             iv.setBackgroundResource(R.drawable.gray_circle);
