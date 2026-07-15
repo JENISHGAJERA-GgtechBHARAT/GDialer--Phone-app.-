@@ -54,17 +54,17 @@ public class RecordingsListActivity extends AppCompatActivity {
     }
 
     private void loadRecordings() {
-        File dir = new File(getFilesDir(), "recordings");
+        File dir = new File(getExternalFilesDir(null) != null ? getExternalFilesDir(null) : getFilesDir(), "call_recordings");
         List<RecordingModel> recordingsList = new ArrayList<>();
 
         if (dir.exists()) {
-            File[] files = dir.listFiles((dir1, name) -> name.startsWith("REC_") && name.endsWith(".m4a"));
+            File[] files = dir.listFiles((dir1, name) -> name.startsWith("REC_") && name.endsWith(".wav"));
             if (files != null) {
                 MediaMetadataRetriever retriever = new MediaMetadataRetriever();
                 for (File file : files) {
                     try {
                         String name = file.getName();
-                        // Format: REC_Number_Timestamp.m4a
+                        // Format: REC_Number_Timestamp.wav
                         String[] parts = name.substring(4, name.length() - 4).split("_");
                         String number = "Unknown";
                         long timestamp = file.lastModified();

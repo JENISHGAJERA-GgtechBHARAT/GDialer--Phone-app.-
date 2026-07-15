@@ -124,6 +124,26 @@ public class VoicemailFragment extends Fragment {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        checkCallScreeningRole();
+    }
+
+    private void checkCallScreeningRole() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            android.app.role.RoleManager roleManager = (android.app.role.RoleManager) requireContext().getSystemService(android.content.Context.ROLE_SERVICE);
+            if (roleManager != null && !roleManager.isRoleHeld(android.app.role.RoleManager.ROLE_CALL_SCREENING)) {
+                try {
+                    Intent intent = roleManager.createRequestRoleIntent(android.app.role.RoleManager.ROLE_CALL_SCREENING);
+                    startActivityForResult(intent, 1009);
+                } catch (Exception e) {
+                    android.util.Log.e("VoicemailFragment", "Failed to start role request intent", e);
+                }
+            }
+        }
+    }
+
+    @Override
     public void onDestroy() {
         if (adapter != null) adapter.release();
         super.onDestroy();

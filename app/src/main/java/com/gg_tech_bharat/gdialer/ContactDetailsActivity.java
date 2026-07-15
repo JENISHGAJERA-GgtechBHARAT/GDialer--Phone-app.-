@@ -24,7 +24,7 @@ public class ContactDetailsActivity extends AppCompatActivity {
     private ImageButton btnBack, btnFavoriteToggle;
     private ShapeableImageView ivAvatar;
     private TextView tvName, tvNumber, tvLocation;
-    private View layoutCall, layoutMessage, layoutWhatsApp;
+    private View layoutCall, layoutMessage, layoutWhatsApp, layoutVideoCall;
     private View layoutBottomEdit, layoutBottomBlock, layoutBottomDelete;
     private ImageView ivBottomBlockIcon;
     private TextView tvBottomBlockText;
@@ -62,6 +62,7 @@ public class ContactDetailsActivity extends AppCompatActivity {
         layoutCall = findViewById(R.id.layoutCall);
         layoutMessage = findViewById(R.id.layoutMessage);
         layoutWhatsApp = findViewById(R.id.layoutWhatsApp);
+        layoutVideoCall = findViewById(R.id.layoutVideoCall);
         rvHistory = findViewById(R.id.rvDetailCallHistory);
 
         layoutBottomEdit = findViewById(R.id.layoutBottomEdit);
@@ -90,6 +91,15 @@ public class ContactDetailsActivity extends AppCompatActivity {
             Utils.triggerHaptic(v);
             Utils.openWhatsApp(this, phoneNumber);
         });
+        if (layoutVideoCall != null) {
+            layoutVideoCall.setOnClickListener(v -> {
+                Utils.triggerHaptic(v);
+                Intent videoIntent = new Intent(this, VideoCallActivity.class);
+                videoIntent.putExtra("IS_CALLER", true);
+                videoIntent.putExtra("EXTRA_NUMBER", phoneNumber);
+                startActivity(videoIntent);
+            });
+        }
 
         layoutBottomEdit.setOnClickListener(v -> {
             Utils.triggerHaptic(v);

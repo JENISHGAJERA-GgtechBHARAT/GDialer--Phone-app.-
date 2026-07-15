@@ -27,6 +27,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -82,6 +83,10 @@
         <activity android:name=".QuickRepliesActivity" android:exported="false" />
         <activity android:name=".CallRecordingSettingsActivity" android:exported="false" />
         <activity android:name=".GreetingActivity" android:exported="false" />
+        <activity android:name=".VideoCallActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.GDialer" />
         <activity android:name=".VoicemailActivity"
             android:theme="@style/Theme.GDialer.Fullscreen"
             android:showWhenLocked="true"
@@ -139,6 +144,15 @@
             android:name=".RecordingService"
             android:foregroundServiceType="microphone"
             android:exported="false" />
+
+        <service
+            android:name=".GdialerCallScreeningService"
+            android:permission="android.permission.BIND_SCREENING_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
 
         <activity
             android:name=".RecordingsListActivity"

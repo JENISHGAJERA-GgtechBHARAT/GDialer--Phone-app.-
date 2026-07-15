@@ -88,6 +88,9 @@ dependencies {
     // WebRTC for Audio Processing (Noise Suppression & Echo Cancellation)
     implementation("io.github.webrtc-sdk:android:125.6422.06.1")
     
+    // OkHttp for WebSocket signaling
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

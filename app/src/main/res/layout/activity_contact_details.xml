@@ -121,6 +121,14 @@
                         <TextView style="@style/ContactDetailActionText" android:text="WhatsApp" />
                     </LinearLayout>
 
+                    <!-- Video Call -->
+                    <LinearLayout style="@style/ContactDetailActionContainer" android:id="@+id/layoutVideoCall">
+                        <FrameLayout style="@style/ContactDetailActionIconBg" android:background="@drawable/blue_circle">
+                            <ImageView style="@style/ContactDetailActionIcon" android:src="@drawable/ic_video_call" app:tint="@color/white" />
+                        </FrameLayout>
+                        <TextView style="@style/ContactDetailActionText" android:text="Video Call" />
+                    </LinearLayout>
+
                 </LinearLayout>
 
             </LinearLayout>

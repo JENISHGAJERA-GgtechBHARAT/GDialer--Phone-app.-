@@ -1,6 +1,7 @@
 package com.gg_tech_bharat.gdialer;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
@@ -83,9 +84,39 @@ public class CallRecordingSettingsActivity extends AppCompatActivity {
         if (switchAutoRecord != null) {
             switchAutoRecord.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 Utils.triggerHaptic(buttonView);
-                prefs.edit().putBoolean("auto_record_enabled", isChecked).apply();
-                if (layoutOptionsContainer != null) {
-                    layoutOptionsContainer.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+                if (isChecked) {
+                    boolean consentGiven = prefs.getBoolean("auto_record_consent_given", false);
+                    if (!consentGiven) {
+                        new AlertDialog.Builder(CallRecordingSettingsActivity.this, R.style.SamsungCustomDialog)
+                            .setTitle("Call Recording Consent")
+                            .setMessage("Recording telephone conversations may be subject to local, state, and federal laws. By enabling this feature, you agree that you have obtained consent from all parties involved if required by law, and you accept all legal responsibilities.")
+                            .setPositiveButton("I Agree", (dialog, which) -> {
+                                prefs.edit().putBoolean("auto_record_consent_given", true).apply();
+                                prefs.edit().putBoolean("auto_record_enabled", true).apply();
+                                if (layoutOptionsContainer != null) {
+                                    layoutOptionsContainer.setVisibility(View.VISIBLE);
+                                }
+                                checkAndPromptBatteryOptimization();
+                            })
+                            .setNegativeButton("Cancel", (dialog, which) -> {
+                                switchAutoRecord.setChecked(false);
+                            })
+                            .setOnCancelListener(dialog -> {
+                                switchAutoRecord.setChecked(false);
+                            })
+                            .show();
+                    } else {
+                        prefs.edit().putBoolean("auto_record_enabled", true).apply();
+                        if (layoutOptionsContainer != null) {
+                            layoutOptionsContainer.setVisibility(View.VISIBLE);
+                        }
+                        checkAndPromptBatteryOptimization();
+                    }
+                } else {
+                    prefs.edit().putBoolean("auto_record_enabled", false).apply();
+                    if (layoutOptionsContainer != null) {
+                        layoutOptionsContainer.setVisibility(View.GONE);
+                    }
                 }
             });
         }
@@ -205,5 +236,27 @@ public class CallRecordingSettingsActivity extends AppCompatActivity {
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(getResources().getColor(R.color.text_primary));
         });
         dialog.show();
+    }
+
+    private void checkAndPromptBatteryOptimization() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            android.os.PowerManager pm = (android.os.PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())) {
+                new AlertDialog.Builder(this, R.style.SamsungCustomDialog)
+                    .setTitle("Battery Optimization")
+                    .setMessage("To ensure call recording works reliably in the background, please disable battery optimization for GDialer.")
+                    .setPositiveButton("Disable", (dialog, which) -> {
+                        try {
+                            Intent intent = new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                            intent.setData(android.net.Uri.parse("package:" + getPackageName()));
+                            startActivity(intent);
+                        } catch (Exception e) {
+                            android.util.Log.e("CallRecordingSettings", "Failed to open ignore battery optimization intent", e);
+                        }
+                    })
+                    .setNegativeButton("Not Now", null)
+                    .show();
+            }
+        }
     }
 }
