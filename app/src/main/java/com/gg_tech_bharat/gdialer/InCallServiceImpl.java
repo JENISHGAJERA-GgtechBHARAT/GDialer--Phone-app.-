@@ -354,9 +354,9 @@ public class InCallServiceImpl extends InCallService {
                     return;
                 }
 
-                // FIX: Show Ongoing Call screen everywhere EXCEPT in games or landscape (unless locked)
+                // FIX: Show Ongoing Call screen everywhere EXCEPT in games (unless locked)
                 boolean showFullScreen = true;
-                if ((isGame || isLandscape) && !isLocked && CallManager.getCalls().size() <= 1) {
+                if (isGame && !isLocked && CallManager.getCalls().size() <= 1) {
                     showFullScreen = false;
                 }
 
