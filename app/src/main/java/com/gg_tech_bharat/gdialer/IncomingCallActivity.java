@@ -30,7 +30,7 @@ import java.util.List;
 public class IncomingCallActivity extends AppCompatActivity implements SensorEventListener {
 
     private TextView tvCallerName, tvCallerNumber, tvSpamWarning;
-    private TextView tvIncomingVolte, tvIncomingVowifi;
+    private TextView tvIncomingVolte, tvIncomingVowifi, tvCallerLocation;
     private ShapeableImageView ivCallerPhoto;
     private View layoutAccept, layoutReject, layoutCallWaitingActions, swipeActionsContainer;
     private View btnEndAndAnswer, btnHoldAndAnswer, btnMergeAndAnswer, btnQuickMessageWaiting;
@@ -148,6 +148,7 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
     private void initViews() {
         tvCallerName = findViewById(R.id.tvIncomingCallerName);
         tvCallerNumber = findViewById(R.id.tvIncomingCallerNumber);
+        tvCallerLocation = findViewById(R.id.tvIncomingCallerLocation);
         tvSpamWarning = findViewById(R.id.tvSpamWarning);
         tvIncomingVolte = findViewById(R.id.tvIncomingVolte);
         tvIncomingVowifi = findViewById(R.id.tvIncomingVowifi);
@@ -189,6 +190,21 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
         if (passedName != null && !passedName.equals(phoneNumber)) callerName = passedName;
         else callerName = phoneNumber;
         if (tvCallerName != null) tvCallerName.setText(callerName);
+        updateCallerLocation();
+    }
+
+    private void updateCallerLocation() {
+        if (phoneNumber != null && !phoneNumber.equals("Unknown")) {
+            String location = LocationResolver.getCallLocation(this, phoneNumber);
+            if (location != null && tvCallerLocation != null) {
+                tvCallerLocation.setText(location);
+                tvCallerLocation.setVisibility(View.VISIBLE);
+            } else if (tvCallerLocation != null) {
+                tvCallerLocation.setVisibility(View.GONE);
+            }
+        } else if (tvCallerLocation != null) {
+            tvCallerLocation.setVisibility(View.GONE);
+        }
     }
 
     private void updateUIForCallWaiting() {
@@ -327,6 +343,7 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
         phoneNumber = intent.getStringExtra("EXTRA_NUMBER");
         if (tvCallerNumber != null) tvCallerNumber.setText(phoneNumber);
         loadCallerDetails();
+        updateCallerLocation();
         updateUIForCallWaiting();
 
         if (intent.getBooleanExtra("TRIGGER_UNLOCK_AND_ANSWER", false)) {

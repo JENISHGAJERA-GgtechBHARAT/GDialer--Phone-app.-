@@ -155,7 +155,12 @@ public class RecentAdapter extends RecyclerView.Adapter<RecentAdapter.RecentView
         }
         Utils.loadContactPhoto(context, photoUri, holder.ivAvatar);
 
-        holder.tvDetails.setText(String.format("%s • %s", Utils.formatTimestamp(recent.getTimestamp()), Utils.formatDuration(recent.getDuration())));
+        String location = LocationResolver.getCallLocation(context, number);
+        String formattedDetails = String.format("%s • %s", Utils.formatTimestamp(recent.getTimestamp()), Utils.formatDuration(recent.getDuration()));
+        if (location != null) {
+            formattedDetails += " • " + location;
+        }
+        holder.tvDetails.setText(formattedDetails);
 
         int callIcon = R.drawable.ic_incoming;
         int callColor = R.color.call_incoming;
@@ -180,9 +185,13 @@ public class RecentAdapter extends RecyclerView.Adapter<RecentAdapter.RecentView
 
         // Show phone number instead of metadata when expanded
         if (isExpanded && currentName != null && !currentName.isEmpty()) {
-            holder.tvDetails.setText(number);
+            String expandedDetails = number;
+            if (location != null) {
+                expandedDetails += " • " + location;
+            }
+            holder.tvDetails.setText(expandedDetails);
         } else {
-            holder.tvDetails.setText(String.format("%s • %s", Utils.formatTimestamp(recent.getTimestamp()), Utils.formatDuration(recent.getDuration())));
+            holder.tvDetails.setText(formattedDetails);
         }
 
         holder.itemView.setOnClickListener(v -> {

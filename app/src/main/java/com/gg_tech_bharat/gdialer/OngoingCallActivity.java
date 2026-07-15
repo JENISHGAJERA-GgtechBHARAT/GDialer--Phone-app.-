@@ -51,7 +51,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
 
     private static final int REQUEST_CODE_ADD_CALL = 5001;
 
-    private TextView tvCallerName, tvCallerNumber, tvCallTimer, tvMute, tvSpeaker, tvHold;
+    private TextView tvCallerName, tvCallerNumber, tvCallerLocation, tvCallTimer, tvMute, tvSpeaker, tvHold;
     private TextView tvKeypadDigits, tvHdIcon, tvWifiIcon;
     private TextView tvKeypadToggle, tvAddCall, tvVideoCallInCall, tvMerge;
     private ShapeableImageView ivCallerPhoto;
@@ -212,6 +212,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
         phoneNumber = intent.getStringExtra("EXTRA_NUMBER");
         String passedName = intent.getStringExtra("EXTRA_NAME");
         if (tvCallerNumber != null) tvCallerNumber.setText(phoneNumber);
+        updateCallerLocation();
         if (passedName != null) {
             callerName = passedName;
             if (tvCallerName != null) tvCallerName.setText(callerName);
@@ -228,6 +229,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     private void initViews() {
         tvCallerName = findViewById(R.id.tvCallerName);
         tvCallerNumber = findViewById(R.id.tvCallerNumber);
+        tvCallerLocation = findViewById(R.id.tvCallerLocation);
         tvCallTimer = findViewById(R.id.tvCallTimer);
         ivCallerPhoto = findViewById(R.id.ivCallerPhoto);
         viewPulse1 = findViewById(R.id.viewPulse1);
@@ -278,9 +280,24 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
         if (passedName != null && !passedName.equals(phoneNumber)) callerName = passedName;
         else callerName = phoneNumber;
         if (tvCallerName != null) tvCallerName.setText(callerName);
+        updateCallerLocation();
         if (CallManager.sCurrentCall != null && CallManager.sCurrentCall.getState() == Call.STATE_ACTIVE) {
             long connectTime = CallManager.sCurrentCall.getDetails().getConnectTimeMillis();
             if (connectTime > 0) callStartTime = SystemClock.elapsedRealtime() - (System.currentTimeMillis() - connectTime);
+        }
+    }
+
+    private void updateCallerLocation() {
+        if (phoneNumber != null && !phoneNumber.equals("Unknown")) {
+            String location = LocationResolver.getCallLocation(this, phoneNumber);
+            if (location != null && tvCallerLocation != null) {
+                tvCallerLocation.setText(location);
+                tvCallerLocation.setVisibility(View.VISIBLE);
+            } else if (tvCallerLocation != null) {
+                tvCallerLocation.setVisibility(View.GONE);
+            }
+        } else if (tvCallerLocation != null) {
+            tvCallerLocation.setVisibility(View.GONE);
         }
     }
 
@@ -421,12 +438,14 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
                 if (btnMerge != null) btnMerge.setVisibility(View.VISIBLE);
                 if (tvCallerName != null) tvCallerName.setVisibility(View.GONE);
                 if (tvCallerNumber != null) tvCallerNumber.setVisibility(View.GONE);
+                if (tvCallerLocation != null) tvCallerLocation.setVisibility(View.GONE);
                 if (layoutAvatarPulsing != null) { layoutAvatarPulsing.setScaleX(0.7f); layoutAvatarPulsing.setScaleY(0.7f); }
             } else {
                 if (tvMultiCallSummary != null) tvMultiCallSummary.setVisibility(View.GONE);
                 if (btnMerge != null) btnMerge.setVisibility(View.GONE);
                 if (tvCallerName != null) tvCallerName.setVisibility(View.VISIBLE);
                 if (tvCallerNumber != null) { tvCallerNumber.setText(phoneNumber); tvCallerNumber.setVisibility(View.VISIBLE); }
+                updateCallerLocation();
                 if (layoutAvatarPulsing != null) { layoutAvatarPulsing.setScaleX(1.0f); layoutAvatarPulsing.setScaleY(1.0f); }
             }
         });

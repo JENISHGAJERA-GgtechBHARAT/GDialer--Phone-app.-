@@ -23,7 +23,7 @@ public class ContactDetailsActivity extends AppCompatActivity {
 
     private ImageButton btnBack, btnFavoriteToggle;
     private ShapeableImageView ivAvatar;
-    private TextView tvName, tvNumber;
+    private TextView tvName, tvNumber, tvLocation;
     private View layoutCall, layoutMessage, layoutWhatsApp;
     private View layoutBottomEdit, layoutBottomBlock, layoutBottomDelete;
     private ImageView ivBottomBlockIcon;
@@ -55,6 +55,7 @@ public class ContactDetailsActivity extends AppCompatActivity {
         ivAvatar = findViewById(R.id.ivDetailAvatar);
         tvName = findViewById(R.id.tvDetailName);
         tvNumber = findViewById(R.id.tvDetailNumber);
+        tvLocation = findViewById(R.id.tvDetailLocation);
         
         if (initialName != null) tvName.setText(initialName);
         tvNumber.setText(phoneNumber);
@@ -142,6 +143,7 @@ public class ContactDetailsActivity extends AppCompatActivity {
                     updateFavoriteIcon(false);
                     Utils.loadContactPhoto(this, "", ivAvatar);
                 }
+                updateLocation();
             });
 
             // Load call log history specifically for this number
@@ -153,6 +155,20 @@ public class ContactDetailsActivity extends AppCompatActivity {
                 });
             });
         });
+    }
+
+    private void updateLocation() {
+        if (phoneNumber != null) {
+            String location = LocationResolver.getCallLocation(this, phoneNumber);
+            if (location != null && tvLocation != null) {
+                tvLocation.setText(location);
+                tvLocation.setVisibility(View.VISIBLE);
+            } else if (tvLocation != null) {
+                tvLocation.setVisibility(View.GONE);
+            }
+        } else if (tvLocation != null) {
+            tvLocation.setVisibility(View.GONE);
+        }
     }
 
     private void checkBlockState() {

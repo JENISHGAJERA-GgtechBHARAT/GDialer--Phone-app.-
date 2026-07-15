@@ -36,6 +36,15 @@
             android:textSize="18sp" />
 
         <TextView
+            android:id="@+id/tvIncomingCallerLocation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="15sp"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/tvSimIndicator"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
