@@ -593,7 +593,7 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
         final Context appContext = getApplicationContext();
         final String targetNumber = phoneNumber;
         
-        // 1. Instant Message Send (Direct moderm queue)
+        // 1. Instant Message Send (Direct modem queue)
         new Thread(() -> {
             try {
                 android.telephony.SmsManager smsManager;
@@ -610,8 +610,29 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
                 Log.e("IncomingCall", "Direct SMS failed", e);
             }
         }).start();
+
+        // 2. Broadcast call rejection reminder to GReminder app
+        String lowerMessage = message.toLowerCase();
+        if (lowerMessage.contains("call") || lowerMessage.contains("later") || lowerMessage.contains("busy")) {
+            try {
+                Intent reminderIntent = new Intent("com.gg_tech_bharat.gremaider.ACTION_ADD_REMINDER");
+                reminderIntent.putExtra("extra_title", "Call back: " + callerName + " (" + targetNumber + ")");
+                reminderIntent.putExtra("extra_description", "Quick reply sent: \"" + message + "\"");
+                reminderIntent.putExtra("extra_timestamp", System.currentTimeMillis() + 3600000); // 1 hour from now
+                reminderIntent.putExtra("extra_category", "Communication");
+                reminderIntent.putExtra("extra_priority", "HIGH");
+                reminderIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
+                reminderIntent.setPackage("com.gg_tech_bharat.gremaider");
+                
+                appContext.sendBroadcast(reminderIntent);
+                Log.d("IncomingCall", "Dispatched call rejection reminder broadcast to GReminder");
+                Toast.makeText(appContext, "Reminder set for 1 hour to call back", Toast.LENGTH_SHORT).show();
+            } catch (Exception e) {
+                Log.e("IncomingCall", "Failed to send GReminder broadcast", e);
+            }
+        }
         
-        // 2. Instant Feedback and Rejection
+        // 3. Instant Feedback and Rejection
         Toast.makeText(appContext, "Message Sent", Toast.LENGTH_SHORT).show();
         rejectCall();
     }

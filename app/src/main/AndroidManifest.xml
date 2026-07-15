@@ -1,7 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.gg_tech_bharat.gdialer">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- App Permissions -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -173,6 +171,26 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.PHONE_STATE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- AI Noise Cancellation -->
+        <activity
+            android:name=".settings.AiNoiseSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GDialer" />
+
+        <service
+            android:name=".service.AudioProcessingService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
+
+        <receiver
+            android:name=".receiver.NoiseReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.media.AUDIO_BECOMING_NOISY" />
+                <action android:name="android.intent.action.HEADSET_PLUG" />
             </intent-filter>
         </receiver>
 

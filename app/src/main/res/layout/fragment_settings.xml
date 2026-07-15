@@ -157,6 +157,18 @@
                         app:tint="@color/text_secondary" />
                 </LinearLayout>
 
+                <View style="@style/SettingsDivider" />
+
+                <!-- AI Noise Cancellation settings -->
+                <LinearLayout style="@style/SettingsItemContainer" android:id="@+id/layoutAiNoiseSettings" android:clickable="true" android:focusable="true">
+                    <TextView style="@style/SettingsItemTitle" android:text="AI Noise Cancellation" />
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_settings"
+                        app:tint="@color/text_secondary" />
+                </LinearLayout>
+
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 

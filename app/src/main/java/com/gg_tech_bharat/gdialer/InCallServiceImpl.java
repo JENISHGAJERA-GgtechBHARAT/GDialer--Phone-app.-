@@ -138,6 +138,15 @@ public class InCallServiceImpl extends InCallService {
                 handleCallState(call, state); // MUST CALL THIS TO LAUNCH ONGOING SCREEN
                 updateProximityWakeLock();
                 checkAndAutoRecordCall(call);
+                
+                // Start AI Voice Noise Cancellation processing
+                try {
+                    Intent aiIntent = new Intent(InCallServiceImpl.this, com.gg_tech_bharat.gdialer.service.AudioProcessingService.class);
+                    aiIntent.setAction(com.gg_tech_bharat.gdialer.service.AudioProcessingService.ACTION_START_AI);
+                    startService(aiIntent);
+                } catch (Exception e) {
+                    Log.e("InCallServiceImpl", "Failed to start AI Processing Service", e);
+                }
             } else if (state == Call.STATE_DISCONNECTED) {
                 if (!endVibratedCalls.contains(callId)) {
                     // Short vibrate on end
@@ -275,6 +284,13 @@ public class InCallServiceImpl extends InCallService {
             Intent recordIntent = new Intent(this, RecordingService.class);
             recordIntent.setAction(RecordingService.ACTION_STOP_RECORDING);
             startService(recordIntent);
+        } catch (Exception ignored) {}
+
+        // Stop AI Voice Noise Cancellation when all calls end
+        try {
+            Intent aiIntent = new Intent(this, com.gg_tech_bharat.gdialer.service.AudioProcessingService.class);
+            aiIntent.setAction(com.gg_tech_bharat.gdialer.service.AudioProcessingService.ACTION_STOP_AI);
+            startService(aiIntent);
         } catch (Exception ignored) {}
 
         stopForeground(STOP_FOREGROUND_REMOVE);

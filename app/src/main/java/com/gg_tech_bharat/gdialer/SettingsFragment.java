@@ -100,6 +100,14 @@ public class SettingsFragment extends Fragment {
             });
         }
 
+        View aiNoiseSettings = view.findViewById(R.id.layoutAiNoiseSettings);
+        if (aiNoiseSettings != null) {
+            aiNoiseSettings.setOnClickListener(v -> {
+                Utils.triggerHaptic(v);
+                startActivity(new Intent(requireContext(), com.gg_tech_bharat.gdialer.settings.AiNoiseSettingsActivity.class));
+            });
+        }
+
         View accountSync = view.findViewById(R.id.layoutAccountSync);
         if (accountSync != null) {
             accountSync.setOnClickListener(v -> {
