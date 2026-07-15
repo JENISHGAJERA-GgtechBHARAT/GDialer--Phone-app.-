@@ -347,6 +347,9 @@ public class InCallServiceImpl extends InCallService {
                 boolean isGame = isGameRunning();
                 boolean isLandscape = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 
+                Call.Details details = call.getDetails();
+                boolean isPickup = (state == Call.STATE_ACTIVE && details != null && details.getCallDirection() == Call.Details.DIRECTION_INCOMING);
+
                 // Check if voicemail screening is active to prevent launching OngoingCallActivity
                 if (CallManager.isVoicemailScreening) {
                     Log.d("InCallServiceImpl", "Voicemail screening active, suppressing OngoingCallActivity");
@@ -354,8 +357,11 @@ public class InCallServiceImpl extends InCallService {
                     return;
                 }
 
-                // FIX: Show Ongoing Call screen everywhere EXCEPT in games or landscape (unless locked)
+                // FIX: Show Ongoing Call screen everywhere EXCEPT on incoming call pickup (unless locked) or in games/landscape
                 boolean showFullScreen = true;
+                if (isPickup && !isLocked) {
+                    showFullScreen = false;
+                }
                 if ((isGame || isLandscape) && !isLocked && CallManager.getCalls().size() <= 1) {
                     showFullScreen = false;
                 }
