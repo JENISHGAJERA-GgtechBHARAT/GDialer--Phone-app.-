@@ -684,9 +684,33 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
     private void performAnswer(int videoState) {
         Call ringingCall = null;
         for (Call c : CallManager.getCalls()) { if (c.getState() == Call.STATE_RINGING) { ringingCall = c; break; } }
-        if (ringingCall != null) { try { ringingCall.answer(videoState); finishWithTransition(); } catch (Exception e) { finish(); } }
-        else if (CallManager.sCurrentCall != null) { try { CallManager.sCurrentCall.answer(videoState); finishWithTransition(); } catch (Exception e) { finish(); } }
-        else finish();
+        if (ringingCall != null) {
+            try {
+                ringingCall.answer(videoState);
+                Intent ongoingIntent = new Intent(this, OngoingCallActivity.class);
+                ongoingIntent.putExtra("EXTRA_NUMBER", phoneNumber);
+                ongoingIntent.putExtra("EXTRA_NAME", callerName);
+                ongoingIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(ongoingIntent);
+                finishWithTransition();
+            } catch (Exception e) {
+                finish();
+            }
+        } else if (CallManager.sCurrentCall != null) {
+            try {
+                CallManager.sCurrentCall.answer(videoState);
+                Intent ongoingIntent = new Intent(this, OngoingCallActivity.class);
+                ongoingIntent.putExtra("EXTRA_NUMBER", phoneNumber);
+                ongoingIntent.putExtra("EXTRA_NAME", callerName);
+                ongoingIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                startActivity(ongoingIntent);
+                finishWithTransition();
+            } catch (Exception e) {
+                finish();
+            }
+        } else {
+            finish();
+        }
     }
 
     private void rejectCall() {
