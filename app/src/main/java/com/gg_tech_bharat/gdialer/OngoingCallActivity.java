@@ -977,12 +977,12 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     @Override
     public void onBackPressed() {
         try {
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            Intent intent = new Intent(Intent.ACTION_MAIN);
+            intent.addCategory(Intent.CATEGORY_HOME);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
-            overridePendingTransition(0, R.anim.premium_fade_out);
         } catch (Exception e) {
-            super.onBackPressed();
+            moveTaskToBack(true);
         }
     }
 
