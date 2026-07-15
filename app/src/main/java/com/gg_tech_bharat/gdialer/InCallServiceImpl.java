@@ -8,12 +8,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.graphics.drawable.Icon;
-import android.media.AudioAttributes;
-import android.media.AudioManager;
-import android.media.ToneGenerator;
 import android.os.Build;
 import android.os.SystemClock;
 import android.telecom.Call;
@@ -24,8 +20,6 @@ import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
 import androidx.core.app.NotificationCompat;
-import androidx.core.content.ContextCompat;
-import android.Manifest;
 
 import java.util.List;
 import java.util.Objects;
@@ -33,8 +27,8 @@ import java.util.Objects;
 public class InCallServiceImpl extends InCallService {
 
     public static InCallServiceImpl sInstance;
-    private static final String CHANNEL_ID_HIGH = "incoming_calls_v20";
-    private static final String CHANNEL_ID_DEFAULT = "ongoing_calls_v20";
+    private static final String CHANNEL_ID_HIGH = "incoming_calls_v19_silent";
+    private static final String CHANNEL_ID_DEFAULT = "ongoing_calls_default_v19_silent";
     private static final String ACTION_END_CALL = "com.gg_tech_bharat.gdialer.ACTION_END_CALL";
     private static final String ACTION_ANSWER_CALL = "com.gg_tech_bharat.gdialer.ACTION_ANSWER_CALL";
     private static final String ACTION_MUTE = "com.gg_tech_bharat.gdialer.ACTION_MUTE";
@@ -43,13 +37,14 @@ public class InCallServiceImpl extends InCallService {
 
     private String currentRingingCallId = null;
     private android.os.PowerManager.WakeLock proximityWakeLock;
-    private ToneGenerator toneGenerator;
 
     private final BroadcastReceiver actionReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (action == null) return;
+            Log.d("InCallServiceImpl", "Broadcast action received: " + action);
+            
             try {
                 switch (action) {
                     case ACTION_END_CALL:
@@ -58,9 +53,57 @@ public class InCallServiceImpl extends InCallService {
                         else if (CallManager.sCurrentCall != null) CallManager.sCurrentCall.disconnect();
                         break;
                     case ACTION_ANSWER_CALL:
-                        int vState = intent.getIntExtra("VIDEO_STATE", VideoProfile.STATE_AUDIO_ONLY);
-                        if (CallManager.getRingingCall() != null) CallManager.getRingingCall().answer(vState);
-                        else if (CallManager.sCurrentCall != null && CallManager.sCurrentCall.getState() == Call.STATE_RINGING) CallManager.sCurrentCall.answer(vState);
+                        final int vState = intent.getIntExtra("VIDEO_STATE", VideoProfile.STATE_AUDIO_ONLY);
+                        final Call ringingAns = CallManager.getRingingCall();
+                        if (ringingAns != null) {
+                            android.telecom.Call.Details details = ringingAns.getDetails();
+                            android.net.Uri handleUri = (details != null) ? details.getHandle() : null;
+                            final String num = (handleUri != null) ? handleUri.getSchemeSpecificPart() : "";
+                            final android.content.BroadcastReceiver.PendingResult pendingResult = goAsync();
+                            AppDatabase.databaseWriteExecutor.execute(() -> {
+                                boolean reqUnlock = false;
+                                try {
+                                    ContactDao dao = AppDatabase.getDatabase(InCallServiceImpl.this).contactDao();
+                                    String normalized = Utils.normalizePhoneNumber(num);
+                                    ContactModel contact = dao.getContactByNormalizedNumber(normalized);
+                                    if (contact == null && normalized.length() >= 10) {
+                                        contact = dao.getContactByLastDigits(normalized.substring(normalized.length() - 10));
+                                    }
+                                    if (contact != null) {
+                                        reqUnlock = contact.isNeedUnlock();
+                                    }
+                                } catch (Exception e) {
+                                    Log.e("InCallServiceImpl", "Failed to query database for unlock check", e);
+                                }
+                                
+                                final boolean finalReqUnlock = reqUnlock;
+                                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                                    try {
+                                        android.app.KeyguardManager km = (android.app.KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+                                        boolean isLocked = (km != null) && km.isKeyguardLocked();
+                                        
+                                        if (finalReqUnlock && isLocked) {
+                                            Intent incomingIntent = new Intent(InCallServiceImpl.this, IncomingCallActivity.class);
+                                            incomingIntent.putExtra("EXTRA_NUMBER", num);
+                                            incomingIntent.putExtra("TRIGGER_UNLOCK_AND_ANSWER", true);
+                                            incomingIntent.putExtra("VIDEO_STATE", vState);
+                                            incomingIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                                            startActivity(incomingIntent);
+                                        } else {
+                                            ringingAns.answer(vState);
+                                        }
+                                    } catch (Exception e) {
+                                        Log.e("InCallServiceImpl", "Error performing answer from receiver", e);
+                                    } finally {
+                                        pendingResult.finish();
+                                    }
+                                });
+                            });
+                        } else {
+                            if (CallManager.sCurrentCall != null && CallManager.sCurrentCall.getState() == Call.STATE_RINGING) {
+                                CallManager.sCurrentCall.answer(vState);
+                            }
+                        }
                         break;
                     case ACTION_MUTE:
                         CallAudioState state = getCallAudioState();
@@ -74,9 +117,13 @@ public class InCallServiceImpl extends InCallService {
                         }
                         break;
                 }
-            } catch (Exception e) { Log.e("InCallServiceImpl", "Action error", e); }
+            } catch (Exception e) {
+                Log.e("InCallServiceImpl", "Error handling broadcast action", e);
+            }
         }
     };
+
+    private final java.util.Set<String> endVibratedCalls = new java.util.HashSet<>();
 
     private final Call.Callback callCallback = new Call.Callback() {
         @Override
@@ -84,13 +131,28 @@ public class InCallServiceImpl extends InCallService {
             super.onStateChanged(call, state);
             CallManager.updateState(state);
             
+            String callId = (call.getDetails() != null) ? String.valueOf(call.getDetails().getCreationTimeMillis()) : call.toString();
+
             if (state == Call.STATE_ACTIVE) {
-                playTone(ToneGenerator.TONE_PROP_BEEP, 100);
-                handleCallState(call, state);
+                // Remove pickup vibration to avoid "vibrate twice" issue
+                handleCallState(call, state); // MUST CALL THIS TO LAUNCH ONGOING SCREEN
                 updateProximityWakeLock();
                 checkAndAutoRecordCall(call);
+                
+                // Start AI Voice Noise Cancellation processing
+                try {
+                    Intent aiIntent = new Intent(InCallServiceImpl.this, com.gg_tech_bharat.gdialer.service.AudioProcessingService.class);
+                    aiIntent.setAction(com.gg_tech_bharat.gdialer.service.AudioProcessingService.ACTION_START_AI);
+                    startService(aiIntent);
+                } catch (Exception e) {
+                    Log.e("InCallServiceImpl", "Failed to start AI Processing Service", e);
+                }
             } else if (state == Call.STATE_DISCONNECTED) {
-                playTone(ToneGenerator.TONE_PROP_PROMPT, 200);
+                if (!endVibratedCalls.contains(callId)) {
+                    // Short vibrate on end
+                    try { Utils.vibrateDevice(getApplicationContext(), 100); } catch (Exception ignored) {} 
+                    endVibratedCalls.add(callId);
+                }
                 saveCallToLocalLog(call);
                 cleanupCall(call);
                 updateProximityWakeLock();
@@ -99,20 +161,40 @@ public class InCallServiceImpl extends InCallService {
                 updateProximityWakeLock();
             }
         }
-        @Override public void onDetailsChanged(Call call, Call.Details details) {
+
+        @Override
+        public void onDetailsChanged(Call call, Call.Details details) {
             super.onDetailsChanged(call, details);
             if (call.getState() == Call.STATE_ACTIVE || call.getState() == Call.STATE_DIALING || call.getState() == Call.STATE_CONNECTING) {
                 showActiveCallNotification(getNumberFromCall(call));
             }
         }
-    };
 
-    private void playTone(int toneType, int durationMs) {
-        try {
-            if (toneGenerator == null) toneGenerator = new ToneGenerator(AudioManager.STREAM_VOICE_CALL, 80);
-            toneGenerator.startTone(toneType, durationMs);
-        } catch (Exception e) { Log.e("InCallServiceImpl", "Tone error", e); }
-    }
+        @Override
+        public void onVideoCallChanged(Call call, InCallService.VideoCall videoCall) {
+            super.onVideoCallChanged(call, videoCall);
+            if (videoCall != null) {
+                videoCall.registerCallback(new InCallService.VideoCall.Callback() {
+                    @Override public void onSessionModifyRequestReceived(VideoProfile videoProfile) {
+                        int videoState = videoProfile.getVideoState();
+                        if (VideoProfile.isVideo(videoState)) {
+                            videoCall.sendSessionModifyResponse(new VideoProfile(videoState));
+                        }
+                    }
+                    @Override public void onSessionModifyResponseReceived(int status, VideoProfile requestedProfile, VideoProfile responseProfile) {
+                        Intent intent = new Intent("com.gg_tech_bharat.gdialer.VIDEO_STATE_CHANGED");
+                        intent.setPackage(getPackageName());
+                        sendBroadcast(intent);
+                    }
+                    @Override public void onCallSessionEvent(int event) {}
+                    @Override public void onPeerDimensionsChanged(int width, int height) {}
+                    @Override public void onVideoQualityChanged(int videoQuality) {}
+                    @Override public void onCallDataUsageChanged(long dataUsage) {}
+                    @Override public void onCameraCapabilitiesChanged(VideoProfile.CameraCapabilities cameraCapabilities) {}
+                });
+            }
+        }
+    };
 
     @Override
     public void onCallAudioStateChanged(CallAudioState audioState) {
@@ -127,13 +209,29 @@ public class InCallServiceImpl extends InCallService {
 
     @Override
     public void onCreate() {
+        android.content.SharedPreferences prefs = getSharedPreferences("DialerPrefs", MODE_PRIVATE);
+        boolean useSystem = prefs.getBoolean("use_system_theme", true);
+        if (useSystem) {
+            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        } else {
+            boolean darkMode = prefs.getBoolean("dark_mode", true);
+            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(
+                    darkMode ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES : androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO);
+        }
+
         super.onCreate();
         sInstance = this;
         setupProximitySensor();
         createNotificationChannels();
         IntentFilter filter = new IntentFilter();
-        filter.addAction(ACTION_END_CALL); filter.addAction(ACTION_ANSWER_CALL); filter.addAction(ACTION_MUTE); filter.addAction(ACTION_SPEAKER);
-        try { androidx.core.content.ContextCompat.registerReceiver(this, actionReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED); } catch (Exception ignored) {}
+        filter.addAction(ACTION_END_CALL);
+        filter.addAction(ACTION_ANSWER_CALL);
+        filter.addAction(ACTION_MUTE);
+        filter.addAction(ACTION_SPEAKER);
+        try {
+            androidx.core.content.ContextCompat.registerReceiver(this, actionReceiver, 
+                filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED);
+        } catch (Exception ignored) {}
     }
 
     @Override
@@ -143,12 +241,24 @@ public class InCallServiceImpl extends InCallService {
         CallManager.addCall(call);
         call.registerCallback(callCallback);
         handleCallState(call, call.getState());
-        if (call.getState() == Call.STATE_ACTIVE) checkAndAutoRecordCall(call);
+        if (call.getState() == Call.STATE_ACTIVE) {
+            checkAndAutoRecordCall(call);
+        }
     }
 
     @Override
     public void onCallRemoved(Call call) {
         super.onCallRemoved(call);
+        if (call != null) {
+            String callId = (call.getDetails() != null) ? String.valueOf(call.getDetails().getCreationTimeMillis()) : call.toString();
+            endVibratedCalls.remove(callId);
+            
+            if (call.getState() == Call.STATE_RINGING || CallManager.getRingingCall() == null) {
+                Intent intent = new Intent("com.gg_tech_bharat.gdialer.RINGING_CALL_REMOVED");
+                intent.setPackage(getPackageName());
+                sendBroadcast(intent);
+            }
+        }
         cleanupCall(call);
     }
 
@@ -157,59 +267,134 @@ public class InCallServiceImpl extends InCallService {
             call.unregisterCallback(callCallback);
             CallManager.removeCall(call);
         }
-        if (CallManager.getCalls().isEmpty()) onAllCallsEnded();
+        if (CallManager.getCalls().isEmpty()) {
+            onAllCallsEnded();
+        }
     }
 
     private void onAllCallsEnded() {
         setAudioRoute(CallAudioState.ROUTE_EARPIECE);
         setMuted(false);
-        if (proximityWakeLock != null && proximityWakeLock.isHeld()) try { proximityWakeLock.release(); } catch (Exception ignored) {}
-        try { Intent recordIntent = new Intent(this, RecordingService.class); recordIntent.setAction(RecordingService.ACTION_STOP_RECORDING); startService(recordIntent); } catch (Exception ignored) {}
+        if (proximityWakeLock != null && proximityWakeLock.isHeld()) {
+            try { proximityWakeLock.release(); } catch (Exception ignored) {}
+        }
+        
+        // Stop call recording when all calls end
+        try {
+            Intent recordIntent = new Intent(this, RecordingService.class);
+            recordIntent.setAction(RecordingService.ACTION_STOP_RECORDING);
+            startService(recordIntent);
+        } catch (Exception ignored) {}
+
+        // Stop AI Voice Noise Cancellation when all calls end
+        try {
+            Intent aiIntent = new Intent(this, com.gg_tech_bharat.gdialer.service.AudioProcessingService.class);
+            aiIntent.setAction(com.gg_tech_bharat.gdialer.service.AudioProcessingService.ACTION_STOP_AI);
+            startService(aiIntent);
+        } catch (Exception ignored) {}
+
         stopForeground(STOP_FOREGROUND_REMOVE);
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (nm != null) nm.cancel(NOTIFICATION_ID);
         Intent intent = new Intent("com.gg_tech_bharat.gdialer.CALL_DISCONNECTED");
         intent.setPackage(getPackageName());
         sendBroadcast(intent);
-        if (toneGenerator != null) { toneGenerator.release(); toneGenerator = null; }
     }
 
     @Override
     public void onDestroy() {
         sInstance = null;
-        if (proximityWakeLock != null && proximityWakeLock.isHeld()) try { proximityWakeLock.release(); } catch (Exception ignored) {}
+        if (proximityWakeLock != null && proximityWakeLock.isHeld()) {
+            try { proximityWakeLock.release(); } catch (Exception ignored) {}
+        }
         try { unregisterReceiver(actionReceiver); } catch (Exception ignored) {}
-        if (toneGenerator != null) { toneGenerator.release(); toneGenerator = null; }
         super.onDestroy();
     }
 
     private void handleCallState(Call call, int state) {
         try {
             String number = getNumberFromCall(call);
+            Log.d("InCallServiceImpl", "State Transition: " + state + " for " + number);
+
             if (state == Call.STATE_RINGING) {
                 if (Objects.equals(number, currentRingingCallId)) return;
                 currentRingingCallId = number;
+                
                 android.app.KeyguardManager km = (android.app.KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
                 boolean isLocked = km != null && km.isKeyguardLocked();
                 boolean isHome = isDeviceAtHome();
                 boolean isForeground = isAppInForeground();
+
                 String name = getContactName(number);
+                
+                // FORCED ACTIVITY LAUNCH: For Lock screen, Home, GDialer, or Call Waiting
+                // This ensures the Samsung-style "Hold & Answer" buttons are always accessible
                 if (isLocked || isHome || isForeground || CallManager.getCalls().size() > 1) {
                     startCallActivity(IncomingCallActivity.class, number, name);
+                    
+                    // Show high-priority notification to ensure lockscreen visibility and ringer/popup authority
+                    showRingingNotification(number, call.getDetails().getVideoState(), CHANNEL_ID_HIGH);
+                } else {
+                    // ANY other app is running (multi-tasking) -> Popup (Heads-up) only
+                    showRingingNotification(number, call.getDetails().getVideoState(), CHANNEL_ID_HIGH);
                 }
-                showRingingNotification(number, call.getDetails().getVideoState(), CHANNEL_ID_HIGH);
             } else if (state == Call.STATE_ACTIVE || state == Call.STATE_DIALING || state == Call.STATE_CONNECTING) {
                 currentRingingCallId = null;
                 String name = getContactName(number);
-                startCallActivity(OngoingCallActivity.class, number, name);
+                
+                android.app.KeyguardManager km = (android.app.KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+                boolean isLocked = km != null && km.isKeyguardLocked();
+                boolean isGame = isGameRunning();
+                boolean isLandscape = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+
+                // Check if voicemail screening is active to prevent launching OngoingCallActivity
+                if (CallManager.isVoicemailScreening) {
+                    Log.d("InCallServiceImpl", "Voicemail screening active, suppressing OngoingCallActivity");
+                    showActiveCallNotification(number);
+                    return;
+                }
+
+                // FIX: Show Ongoing Call screen everywhere EXCEPT in games or landscape (unless locked)
+                boolean showFullScreen = true;
+                if ((isGame || isLandscape) && !isLocked && CallManager.getCalls().size() <= 1) {
+                    showFullScreen = false;
+                }
+
+                if (showFullScreen) {
+                    startCallActivity(OngoingCallActivity.class, number, name);
+                }
+
                 showActiveCallNotification(number);
             }
-        } catch (Exception e) { Log.e("InCallServiceImpl", "State error", e); }
+        } catch (Exception e) { Log.e("InCallServiceImpl", "State processing error", e); }
+    }
+
+    private boolean isGameRunning() {
+        try {
+            android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+            if (am == null) return false;
+            
+            // Standard check for top task
+            List<android.app.ActivityManager.RunningTaskInfo> tasks = am.getRunningTasks(1);
+            if (tasks != null && !tasks.isEmpty() && tasks.get(0).topActivity != null) {
+                String pkg = tasks.get(0).topActivity.getPackageName();
+                if (pkg.equals(getPackageName())) return false;
+
+                android.content.pm.ApplicationInfo info = getPackageManager().getApplicationInfo(pkg, 0);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    return info.category == android.content.pm.ApplicationInfo.CATEGORY_GAME;
+                }
+            }
+        } catch (Exception ignored) {}
+        return false;
     }
 
     private String getContactName(String number) {
+        // 1. Check optimized memory cache first (Ultra-Fast)
         ContactModel contact = ContactCache.getContactByNumber(number);
         if (contact != null) return contact.getName();
+        
+        // 2. Fallback to system contacts (Slow)
         return Utils.queryContactName(this, number);
     }
 
@@ -217,29 +402,75 @@ public class InCallServiceImpl extends InCallService {
         AppDatabase.databaseWriteExecutor.execute(() -> {
             String name = Utils.queryContactName(this, number);
             final String finalName = (name != null) ? name : number;
+
+            // Fetch photo URI (local database first, then fallback to system contacts lookup)
+            String photoUri = null;
+            try {
+                ContactModel contact = AppDatabase.getDatabase(this).contactDao().getContactByNormalizedNumber(Utils.normalizePhoneNumber(number));
+                if (contact != null) {
+                    photoUri = contact.getPhotoUri();
+                } else {
+                    photoUri = Utils.queryContactPhotoUri(this, number);
+                }
+            } catch (Exception ignored) {}
+
+            android.graphics.Bitmap photoBitmap = null;
+            if (photoUri != null && !photoUri.isEmpty()) {
+                try {
+                    photoBitmap = com.bumptech.glide.Glide.with(this)
+                            .asBitmap()
+                            .load(photoUri)
+                            .submit(120, 120) // standard notification icon size
+                            .get();
+                } catch (Exception ignored) {}
+            }
+
+            final android.graphics.Bitmap finalBitmap = photoBitmap;
+
             new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                 try {
-                    Intent intent = new Intent(this, IncomingCallActivity.class).putExtra("EXTRA_NUMBER", number).putExtra("EXTRA_NAME", finalName);
+                    Intent intent = new Intent(this, IncomingCallActivity.class)
+                            .putExtra("EXTRA_NUMBER", number)
+                            .putExtra("EXTRA_NAME", finalName);
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_USER_ACTION);
                     PendingIntent fullScreenPi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                    Intent answerIntent = new Intent(ACTION_ANSWER_CALL).setPackage(getPackageName()).putExtra("VIDEO_STATE", videoState);
+                    
+                    Intent answerIntent = new Intent(ACTION_ANSWER_CALL);
+                    answerIntent.setPackage(getPackageName());
+                    answerIntent.putExtra("VIDEO_STATE", videoState);
                     PendingIntent answerPi = PendingIntent.getBroadcast(this, 2, answerIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                    Intent declineIntent = new Intent(ACTION_END_CALL).setPackage(getPackageName());
+                    
+                    Intent declineIntent = new Intent(ACTION_END_CALL);
+                    declineIntent.setPackage(getPackageName());
                     PendingIntent declinePi = PendingIntent.getBroadcast(this, 3, declineIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
                     NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId);
-                    builder.setSmallIcon(R.drawable.ic_phone).setContentTitle("Incoming Call").setContentText(finalName)
-                            .setContentIntent(fullScreenPi).setFullScreenIntent(fullScreenPi, true).setOngoing(true)
-                            .setCategory(NotificationCompat.CATEGORY_CALL).setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                            .setAutoCancel(false).setPriority(NotificationCompat.PRIORITY_MAX);
+
+                    builder.setSmallIcon(R.drawable.ic_phone)
+                            .setContentTitle("Incoming Call")
+                            .setContentText(finalName)
+                            .setContentIntent(fullScreenPi)
+                            .setFullScreenIntent(fullScreenPi, true)
+                            .setOngoing(true)
+                            .setCategory(NotificationCompat.CATEGORY_CALL)
+                            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                            .setAutoCancel(false)
+                            .setPriority(NotificationCompat.PRIORITY_MAX);
 
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        androidx.core.app.Person person = new androidx.core.app.Person.Builder().setName(finalName).setImportant(true).build();
-                        builder.setStyle(NotificationCompat.CallStyle.forIncomingCall(person, declinePi, answerPi));
+                        androidx.core.app.Person.Builder personBuilder = new androidx.core.app.Person.Builder().setName(finalName).setImportant(true);
+                        if (finalBitmap != null) {
+                            personBuilder.setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(finalBitmap));
+                        }
+                        builder.setStyle(NotificationCompat.CallStyle.forIncomingCall(personBuilder.build(), declinePi, answerPi));
                     } else {
+                        if (finalBitmap != null) {
+                            builder.setLargeIcon(finalBitmap);
+                        }
                         builder.addAction(R.drawable.ic_phone, "Answer", answerPi);
                         builder.addAction(R.drawable.ic_phone_end, "Decline", declinePi);
                     }
+
                     startForegroundCompat(builder.build());
                 } catch (Exception e) { Log.e("InCallServiceImpl", "Ringing notif crash", e); }
             });
@@ -250,37 +481,138 @@ public class InCallServiceImpl extends InCallService {
         AppDatabase.databaseWriteExecutor.execute(() -> {
             String name = getContactName(number);
             final String finalName = (name != null) ? name : number;
+
+            // Fetch photo URI (local database first, then fallback to system contacts lookup)
+            String photoUri = null;
+            try {
+                ContactModel contact = AppDatabase.getDatabase(this).contactDao().getContactByNormalizedNumber(Utils.normalizePhoneNumber(number));
+                if (contact != null) {
+                    photoUri = contact.getPhotoUri();
+                } else {
+                    photoUri = Utils.queryContactPhotoUri(this, number);
+                }
+            } catch (Exception ignored) {}
+
+            android.graphics.Bitmap photoBitmap = null;
+            if (photoUri != null && !photoUri.isEmpty()) {
+                try {
+                    photoBitmap = com.bumptech.glide.Glide.with(this)
+                            .asBitmap()
+                            .load(photoUri)
+                            .submit(120, 120) // standard notification icon size
+                            .get();
+                } catch (Exception ignored) {}
+            }
+
+            final android.graphics.Bitmap finalBitmap = photoBitmap;
+
             new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                 try {
                     if (CallManager.sCurrentCall == null || CallManager.sCurrentCall.getState() == Call.STATE_DISCONNECTED) return;
+
                     Intent intent = new Intent(this, OngoingCallActivity.class).putExtra("EXTRA_NUMBER", number).putExtra("EXTRA_NAME", finalName);
                     PendingIntent pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                    Intent endPiIntent = new Intent(ACTION_END_CALL).setPackage(getPackageName());
-                    PendingIntent endPi = PendingIntent.getBroadcast(this, 1, endPiIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                    Intent mutePiIntent = new Intent(ACTION_MUTE).setPackage(getPackageName());
-                    PendingIntent mutePi = PendingIntent.getBroadcast(this, 4, mutePiIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                    Intent speakerPiIntent = new Intent(ACTION_SPEAKER).setPackage(getPackageName());
-                    PendingIntent speakerPi = PendingIntent.getBroadcast(this, 5, speakerPiIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                    
+                    Intent endIntent = new Intent(ACTION_END_CALL);
+                    endIntent.setPackage(getPackageName());
+                    PendingIntent endPi = PendingIntent.getBroadcast(this, 1, endIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
+                    Intent muteIntent = new Intent(ACTION_MUTE);
+                    muteIntent.setPackage(getPackageName());
+                    PendingIntent mutePi = PendingIntent.getBroadcast(this, 4, muteIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+                    Intent speakerIntent = new Intent(ACTION_SPEAKER);
+                    speakerIntent.setPackage(getPackageName());
+                    PendingIntent speakerPi = PendingIntent.getBroadcast(this, 5, speakerIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+                    // CUSTOM REMOTE VIEWS
                     RemoteViews rv = new RemoteViews(getPackageName(), R.layout.notification_ongoing_call);
                     rv.setTextViewText(R.id.tvNotifOngoingName, finalName);
                     rv.setOnClickPendingIntent(R.id.btnNotifEnd, endPi);
                     rv.setOnClickPendingIntent(R.id.btnNotifMute, mutePi);
                     rv.setOnClickPendingIntent(R.id.btnNotifSpeaker, speakerPi);
 
-                    long connectTime = (CallManager.sCurrentCall != null) ? CallManager.sCurrentCall.getDetails().getConnectTimeMillis() : 0;
-                    if (connectTime > 0) rv.setChronometer(R.id.chronometerNotif, SystemClock.elapsedRealtime() - (System.currentTimeMillis() - connectTime), null, true);
-
-                    NotificationCompat.Builder b = new NotificationCompat.Builder(this, CHANNEL_ID_DEFAULT);
-                    b.setSmallIcon(R.drawable.ic_phone).setContentIntent(pi).setOngoing(true).setCategory(NotificationCompat.CATEGORY_CALL)
-                            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC).setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                            .setOnlyAlertOnce(true).setCustomContentView(rv).setCustomBigContentView(rv);
-                    
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        androidx.core.app.Person person = new androidx.core.app.Person.Builder().setName(finalName).setImportant(true).build();
-                        b.setStyle(NotificationCompat.CallStyle.forOngoingCall(person, endPi));
+                    // HD and WiFi Indicator update for Notification
+                    if (CallManager.sCurrentCall != null) {
+                        Call.Details details = CallManager.sCurrentCall.getDetails();
+                        if (details != null) {
+                            int props = details.getCallProperties();
+                            boolean isWifi = (props & Call.Details.PROPERTY_WIFI) != 0;
+                            boolean isHd = !isWifi && (props & Call.Details.PROPERTY_HIGH_DEF_AUDIO) != 0;
+                            
+                            rv.setTextViewText(R.id.tvNotifHd, "VoLTE");
+                            rv.setViewVisibility(R.id.tvNotifHd, isHd ? View.VISIBLE : View.GONE);
+                            rv.setTextViewText(R.id.tvNotifWifi, "VoWiFi");
+                            rv.setViewVisibility(R.id.tvNotifWifi, isWifi ? View.VISIBLE : View.GONE);
+                        }
                     }
-                    startForegroundCompat(b.build());
+
+                    CallAudioState audioState = getCallAudioState();
+                    String speakerLabelText;
+                    int speakerIcon;
+                    String muteLabelText;
+                    int muteIcon = R.drawable.ic_mic;
+                    
+                    if (audioState != null && audioState.getRoute() == CallAudioState.ROUTE_SPEAKER) {
+                        rv.setInt(R.id.btnNotifSpeaker, "setBackgroundResource", R.drawable.blue_circle);
+                        speakerLabelText = "Speaker On";
+                        speakerIcon = R.drawable.ic_speaker;
+                    } else if (audioState != null && audioState.getRoute() == CallAudioState.ROUTE_BLUETOOTH) {
+                        speakerIcon = R.drawable.ic_bluetooth;
+                        rv.setImageViewResource(R.id.btnNotifSpeaker, R.drawable.ic_bluetooth);
+                        rv.setInt(R.id.btnNotifSpeaker, "setBackgroundResource", R.drawable.blue_circle);
+                        speakerLabelText = "Bluetooth";
+                    } else {
+                        speakerIcon = R.drawable.ic_speaker;
+                        rv.setImageViewResource(R.id.btnNotifSpeaker, R.drawable.ic_speaker);
+                        rv.setInt(R.id.btnNotifSpeaker, "setBackgroundResource", 0);
+                        speakerLabelText = "Speaker";
+                    }
+
+                    if (audioState != null && audioState.isMuted()) {
+                        rv.setInt(R.id.btnNotifMute, "setBackgroundResource", R.drawable.gray_circle);
+                        muteLabelText = "Unmute";
+                    } else {
+                        rv.setInt(R.id.btnNotifMute, "setBackgroundResource", 0);
+                        muteLabelText = "Mute";
+                    }
+                    
+                    long connectTime = (CallManager.sCurrentCall != null) ? CallManager.sCurrentCall.getDetails().getConnectTimeMillis() : 0;
+                    if (connectTime > 0) {
+                        long base = SystemClock.elapsedRealtime() - (System.currentTimeMillis() - connectTime);
+                        rv.setChronometer(R.id.chronometerNotif, base, null, true);
+                    }
+
+                    NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID_DEFAULT);
+
+                    builder.setSmallIcon(R.drawable.ic_phone)
+                            .setContentIntent(pi)
+                            .setOngoing(true)
+                            .setCategory(NotificationCompat.CATEGORY_CALL)
+                            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                            .setPriority(NotificationCompat.PRIORITY_HIGH)
+                            .setOnlyAlertOnce(true);
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        androidx.core.app.Person.Builder personBuilder = new androidx.core.app.Person.Builder().setName(finalName).setImportant(true);
+                        if (finalBitmap != null) {
+                            personBuilder.setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(finalBitmap));
+                        }
+                        builder.setStyle(NotificationCompat.CallStyle.forOngoingCall(personBuilder.build(), endPi));
+                        builder.addAction(speakerIcon, speakerLabelText, speakerPi);
+                        builder.addAction(muteIcon, muteLabelText, mutePi);
+                    } else {
+                        if (finalBitmap != null) {
+                            builder.setLargeIcon(finalBitmap);
+                        }
+                        builder.setCustomContentView(rv)
+                                .setCustomBigContentView(rv);
+                        builder.addAction(speakerIcon, speakerLabelText, speakerPi);
+                        builder.addAction(muteIcon, muteLabelText, mutePi);
+                        builder.addAction(R.drawable.ic_phone_end, "End", endPi);
+                    }
+
+                    startForegroundCompat(builder.build());
                 } catch (Exception e) { Log.e("InCallServiceImpl", "Active notif crash", e); }
             });
         });
@@ -301,23 +633,37 @@ public class InCallServiceImpl extends InCallService {
 
     private void startCallActivity(Class<?> activityClass, String number, String name) {
         try {
-            Intent intent = new Intent(this, activityClass).putExtra("EXTRA_NUMBER", number);
+            Intent intent = new Intent(this, activityClass);
+            intent.putExtra("EXTRA_NUMBER", number);
             if (name != null) intent.putExtra("EXTRA_NAME", name);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            
+            // Standard flagship flags
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK 
+                          | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT 
+                          | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            
+            Log.d("InCallServiceImpl", "Launching: " + activityClass.getSimpleName());
             startActivity(intent);
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            Log.e("InCallServiceImpl", "Failed to launch activity", e);
+        }
     }
 
     private void createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager nm = getSystemService(NotificationManager.class);
             if (nm != null) {
-                NotificationChannel high = new NotificationChannel(CHANNEL_ID_HIGH, "Incoming Calls", NotificationManager.IMPORTANCE_HIGH);
-                high.enableVibration(true); high.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
-                nm.createNotificationChannel(high);
-                NotificationChannel def = new NotificationChannel(CHANNEL_ID_DEFAULT, "Active Calls", NotificationManager.IMPORTANCE_LOW);
-                def.setShowBadge(false);
-                nm.createNotificationChannel(def);
+                NotificationChannel highChannel = new NotificationChannel(CHANNEL_ID_HIGH, "Incoming Calls", NotificationManager.IMPORTANCE_HIGH);
+                highChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+                highChannel.enableVibration(false); // Silent & No Vibration
+                highChannel.setSound(null, null);
+                nm.createNotificationChannel(highChannel);
+
+                // Use IMPORTANCE_DEFAULT for buttons to stay functional
+                NotificationChannel defaultChannel = new NotificationChannel(CHANNEL_ID_DEFAULT, "Active Calls", NotificationManager.IMPORTANCE_DEFAULT);
+                defaultChannel.enableVibration(false); // No Vibration
+                defaultChannel.setSound(null, null);
+                nm.createNotificationChannel(defaultChannel);
             }
         }
     }
@@ -326,7 +672,13 @@ public class InCallServiceImpl extends InCallService {
         android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
         if (am == null) return false;
         List<android.app.ActivityManager.RunningAppProcessInfo> processes = am.getRunningAppProcesses();
-        if (processes != null) for (android.app.ActivityManager.RunningAppProcessInfo p : processes) if (p.importance == android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) for (String pkg : p.pkgList) if (pkg.equals(getPackageName())) return true;
+        if (processes != null) {
+            for (android.app.ActivityManager.RunningAppProcessInfo p : processes) {
+                if (p.importance == android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+                    for (String pkg : p.pkgList) { if (pkg.equals(getPackageName())) return true; }
+                }
+            }
+        }
         return false;
     }
 
@@ -346,25 +698,29 @@ public class InCallServiceImpl extends InCallService {
 
     private String getNumberFromCall(Call call) {
         try {
-            if (call != null && call.getDetails() != null && call.getDetails().getHandle() != null) return call.getDetails().getHandle().getSchemeSpecificPart();
+            if (call != null && call.getDetails() != null && call.getDetails().getHandle() != null) {
+                return call.getDetails().getHandle().getSchemeSpecificPart();
+            }
         } catch (Exception ignored) {}
         return "Unknown";
     }
 
     private void saveCallToLocalLog(Call call) {
         if (call == null || call.getDetails() == null) return;
-        final String num = getNumberFromCall(call);
-        final long sTime = call.getDetails().getCreationTimeMillis();
-        long cTime = call.getDetails().getConnectTimeMillis();
-        final long dur = (cTime > 0) ? (System.currentTimeMillis() - cTime) / 1000 : 0;
-        final int cType;
+        String number = getNumberFromCall(call);
+        long startTime = call.getDetails().getCreationTimeMillis();
+        long connectTime = call.getDetails().getConnectTimeMillis();
+        long duration = (connectTime > 0) ? (System.currentTimeMillis() - connectTime) / 1000 : 0;
+        int callType;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            int dir = call.getDetails().getCallDirection();
-            cType = (dir == Call.Details.DIRECTION_OUTGOING) ? 2 : (cTime <= 0 ? 3 : 1);
-        } else cType = (cTime <= 0) ? 3 : 1;
+            int direction = call.getDetails().getCallDirection();
+            callType = (direction == Call.Details.DIRECTION_OUTGOING) ? 2 : (connectTime <= 0 ? 3 : 1);
+        } else {
+            callType = (connectTime <= 0) ? 3 : 1;
+        }
         AppDatabase.databaseWriteExecutor.execute(() -> {
-            String name = Utils.queryContactName(this, num);
-            RecentModel recent = new RecentModel(num, name != null ? name : num, sTime, dur, cType, false, "");
+            String name = Utils.queryContactName(this, number);
+            RecentModel recent = new RecentModel(number, name != null ? name : number, startTime, duration, callType, false, "");
             AppDatabase.getDatabase(this).recentDao().insert(recent);
         });
     }
@@ -372,32 +728,49 @@ public class InCallServiceImpl extends InCallService {
     private void setupProximitySensor() {
         try {
             android.os.PowerManager pm = (android.os.PowerManager) getSystemService(Context.POWER_SERVICE);
-            if (pm != null && pm.isWakeLockLevelSupported(android.os.PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK)) proximityWakeLock = pm.newWakeLock(android.os.PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "GDialer::ProximityWakeLock");
-        } catch (Exception ignored) {}
+            if (pm != null && pm.isWakeLockLevelSupported(android.os.PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK)) {
+                proximityWakeLock = pm.newWakeLock(android.os.PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "GDialer::ProximityWakeLock");
+            }
+        } catch (Exception e) {
+            Log.e("InCallServiceImpl", "Failed to setup proximity wake lock", e);
+        }
     }
 
     private void updateProximityWakeLock() {
         try {
             if (proximityWakeLock == null) return;
-            boolean active = false;
-            for (Call c : CallManager.getCalls()) if (c.getState() == Call.STATE_ACTIVE || c.getState() == Call.STATE_DIALING || c.getState() == Call.STATE_CONNECTING) { active = true; break; }
-            CallAudioState audio = getCallAudioState();
-            boolean earpiece = (audio == null || audio.getRoute() == CallAudioState.ROUTE_EARPIECE || audio.getRoute() == CallAudioState.ROUTE_WIRED_HEADSET);
-            if (active && earpiece) { if (!proximityWakeLock.isHeld()) proximityWakeLock.acquire(10 * 60 * 1000L); }
-            else { if (proximityWakeLock.isHeld()) proximityWakeLock.release(); }
-        } catch (Exception ignored) {}
-    }
 
-    private void checkAndAutoRecordCall(Call call) {
-        android.content.SharedPreferences prefs = getSharedPreferences("DialerPrefs", MODE_PRIVATE);
-        if (!prefs.getBoolean("auto_record_enabled", false)) return;
-        String number = getNumberFromCall(call);
-        String name = getContactName(number);
-        String mode = prefs.getString("auto_record_mode", "all");
-        boolean shouldRecord = "all".equals(mode) || ("unsaved".equals(mode) && (name == null || name.equals(number)));
-        if (shouldRecord && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            Intent recordIntent = new Intent(this, RecordingService.class).setAction(RecordingService.ACTION_START_RECORDING).putExtra(RecordingService.EXTRA_PHONE_NUMBER, number).putExtra(RecordingService.EXTRA_CALLER_NAME, name != null ? name : number);
-            try { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(recordIntent); else startService(recordIntent); } catch (Exception ignored) {}
+            boolean hasActiveOrDialingCall = false;
+            for (Call c : CallManager.getCalls()) {
+                int s = c.getState();
+                if (s == Call.STATE_ACTIVE || s == Call.STATE_DIALING || s == Call.STATE_CONNECTING) {
+                    hasActiveOrDialingCall = true;
+                    break;
+                }
+            }
+
+            CallAudioState audioState = getCallAudioState();
+            boolean isEarpieceOrHeadset = true;
+            if (audioState != null) {
+                int route = audioState.getRoute();
+                if (route == CallAudioState.ROUTE_SPEAKER || route == CallAudioState.ROUTE_BLUETOOTH) {
+                    isEarpieceOrHeadset = false;
+                }
+            }
+
+            if (hasActiveOrDialingCall && isEarpieceOrHeadset) {
+                if (!proximityWakeLock.isHeld()) {
+                    proximityWakeLock.acquire(10 * 60 * 1000L); // 10 minutes timeout
+                    Log.d("InCallServiceImpl", "Proximity wake lock acquired");
+                }
+            } else {
+                if (proximityWakeLock.isHeld()) {
+                    proximityWakeLock.release();
+                    Log.d("InCallServiceImpl", "Proximity wake lock released");
+                }
+            }
+        } catch (Exception e) {
+            Log.e("InCallServiceImpl", "Error updating proximity wake lock", e);
         }
     }
 
@@ -405,7 +778,57 @@ public class InCallServiceImpl extends InCallService {
         Call ringing = CallManager.getRingingCall();
         if (ringing != null) {
             String number = getNumberFromCall(ringing);
-            showRingingNotification(number, ringing.getDetails().getVideoState(), CHANNEL_ID_HIGH);
+            showRingingNotification(number, ringing.getDetails().getVideoState(), CHANNEL_ID_DEFAULT);
+        }
+    }
+
+    private void checkAndAutoRecordCall(Call call) {
+        android.content.SharedPreferences prefs = getSharedPreferences("DialerPrefs", MODE_PRIVATE);
+        boolean autoRecordEnabled = prefs.getBoolean("auto_record_enabled", false);
+        if (!autoRecordEnabled) return;
+
+        String number = getNumberFromCall(call);
+        String name = getContactName(number);
+        String mode = prefs.getString("auto_record_mode", "all"); // all, unsaved, selected
+
+        boolean shouldRecord = false;
+        if ("all".equals(mode)) {
+            shouldRecord = true;
+        } else if ("unsaved".equals(mode)) {
+            boolean isUnknown = (name == null || name.equals(number) || number.equals("Unknown"));
+            if (isUnknown) {
+                shouldRecord = true;
+            }
+        } else if ("selected".equals(mode)) {
+            java.util.Set<String> selectedNumbers = prefs.getStringSet("auto_record_selected_numbers", new java.util.HashSet<>());
+            String normalizedNumber = Utils.normalizePhoneNumber(number);
+            for (String sel : selectedNumbers) {
+                if (android.telephony.PhoneNumberUtils.compare(sel, number) || Utils.normalizePhoneNumber(sel).equals(normalizedNumber)) {
+                    shouldRecord = true;
+                    break;
+                }
+            }
+        }
+
+        if (shouldRecord) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                Intent recordIntent = new Intent(this, RecordingService.class);
+                recordIntent.setAction(RecordingService.ACTION_START_RECORDING);
+                recordIntent.putExtra(RecordingService.EXTRA_PHONE_NUMBER, number);
+                recordIntent.putExtra(RecordingService.EXTRA_CALLER_NAME, name != null ? name : number);
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(recordIntent);
+                    } else {
+                        startService(recordIntent);
+                    }
+                    Log.d("InCallServiceImpl", "Auto-started call recording");
+                } catch (Exception e) {
+                    Log.e("InCallServiceImpl", "Failed to auto-start call recording", e);
+                }
+            } else {
+                Log.w("InCallServiceImpl", "Cannot auto-record call: Microphone permission not granted");
+            }
         }
     }
 }
