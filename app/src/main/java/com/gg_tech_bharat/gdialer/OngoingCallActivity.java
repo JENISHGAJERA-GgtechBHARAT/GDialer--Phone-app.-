@@ -174,56 +174,65 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
                 | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN);
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_ongoing_call);
+        try {
+            setContentView(R.layout.activity_ongoing_call);
 
-        initViews();
-        setupIntentData();
-        setupProximitySensor();
-        setupVideoSurfaces();
-        loadCallerDetails();
-        startPulseAnimation();
-        timerHandler.post(timerRunnable);
-        timerHandler.post(statusPollingRunnable);
-        setupPremiumEndCallInteraction();
-        setupControlButtons();
-        setupInCallKeypad();
-        CallManager.registerListener(callListListener);
-        updateMultiCallUI();
-        updateVideoUI();
-        updateSpeakerUI(null); // Initial speaker state
-        registerDisconnectReceiver();
-        animateEntry();
+            initViews();
+            setupIntentData();
+            setupProximitySensor();
+            setupVideoSurfaces();
+            loadCallerDetails();
+            startPulseAnimation();
+            timerHandler.post(timerRunnable);
+            timerHandler.post(statusPollingRunnable);
+            setupPremiumEndCallInteraction();
+            setupControlButtons();
+            setupInCallKeypad();
+            CallManager.registerListener(callListListener);
+            updateMultiCallUI();
+            updateVideoUI();
+            updateSpeakerUI(null); // Initial speaker state
+            registerDisconnectReceiver();
+            animateEntry();
 
-        if (getIntent().getBooleanExtra("EXTRA_AUTO_MERGE", false)) {
-            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(this::mergeCalls, 1500);
+            if (getIntent().getBooleanExtra("EXTRA_AUTO_MERGE", false)) {
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(this::mergeCalls, 1500);
+            }
+            
+            overridePendingTransition(R.anim.premium_fade_in, R.anim.premium_fade_out);
+        } catch (Exception e) {
+            Log.e("OngoingCallActivity", "Error in onCreate", e);
+            finish();
         }
-        
-        overridePendingTransition(R.anim.premium_fade_in, R.anim.premium_fade_out);
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        setIntent(intent);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true);
-            setTurnScreenOn(true);
-        }
-        phoneNumber = intent.getStringExtra("EXTRA_NUMBER");
-        String passedName = intent.getStringExtra("EXTRA_NAME");
-        if (tvCallerNumber != null) tvCallerNumber.setText(phoneNumber);
-        updateCallerLocation();
-        if (passedName != null) {
-            callerName = passedName;
-            if (tvCallerName != null) tvCallerName.setText(callerName);
-        }
+        try {
+            setIntent(intent);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                setShowWhenLocked(true);
+                setTurnScreenOn(true);
+            }
+            phoneNumber = intent.getStringExtra("EXTRA_NUMBER");
+            String passedName = intent.getStringExtra("EXTRA_NAME");
+            if (tvCallerNumber != null) tvCallerNumber.setText(phoneNumber);
+            updateCallerLocation();
+            if (passedName != null) {
+                callerName = passedName;
+                if (tvCallerName != null) tvCallerName.setText(callerName);
+            }
 
-        if (intent.getBooleanExtra("EXTRA_AUTO_MERGE", false)) {
-            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(this::mergeCalls, 1500);
-        }
+            if (intent.getBooleanExtra("EXTRA_AUTO_MERGE", false)) {
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(this::mergeCalls, 1500);
+            }
 
-        overridePendingTransition(R.anim.premium_fade_in, R.anim.premium_fade_out);
-        loadCallerDetails();
+            overridePendingTransition(R.anim.premium_fade_in, R.anim.premium_fade_out);
+            loadCallerDetails();
+        } catch (Exception e) {
+            Log.e("OngoingCallActivity", "Error in onNewIntent", e);
+        }
     }
 
     private void initViews() {
