@@ -51,6 +51,8 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
 
     private static final int REQUEST_CODE_ADD_CALL = 5001;
 
+    public static boolean sIsRunning = false;
+
     private TextView tvCallerName, tvCallerNumber, tvCallerLocation, tvCallTimer, tvMute, tvSpeaker, tvHold;
     private TextView tvKeypadDigits, tvHdIcon, tvWifiIcon;
     private TextView tvKeypadToggle, tvAddCall, tvVideoCallInCall, tvMerge;
@@ -181,6 +183,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        sIsRunning = true;
         android.content.SharedPreferences prefs = getSharedPreferences("DialerPrefs", MODE_PRIVATE);
         boolean useSystem = prefs.getBoolean("use_system_theme", true);
         if (useSystem) {
@@ -1052,6 +1055,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     }
 
     @Override protected void onDestroy() {
+        sIsRunning = false;
         // Stop recording and camera preview when activity destroyed just in case
         try {
             Intent recordIntent = new Intent(this, RecordingService.class);

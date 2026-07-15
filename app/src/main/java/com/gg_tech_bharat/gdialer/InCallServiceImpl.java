@@ -361,7 +361,11 @@ public class InCallServiceImpl extends InCallService {
                 }
 
                 if (showFullScreen) {
-                    startCallActivity(OngoingCallActivity.class, number, name);
+                    if (!OngoingCallActivity.sIsRunning) {
+                        startCallActivity(OngoingCallActivity.class, number, name);
+                    } else {
+                        Log.d("InCallServiceImpl", "OngoingCallActivity is already running, skipping launch to avoid duplicate transition races");
+                    }
                 }
 
                 showActiveCallNotification(number);
