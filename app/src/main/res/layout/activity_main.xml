@@ -6,6 +6,48 @@
     android:background="@color/app_background"
     android:fitsSystemWindows="true">
 
+    <!-- Active Call Banner -->
+    <LinearLayout
+        android:id="@+id/layoutActiveCallBanner"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="#34C759"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_phone"
+            app:tint="@color/white" />
+
+        <TextView
+            android:id="@+id/tvActiveCallBannerName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:text="Return to active call"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:ellipsize="end"
+            android:singleLine="true" />
+
+        <Chronometer
+            android:id="@+id/chronometerActiveCall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPager"
         android:layout_width="0dp"
@@ -13,7 +55,7 @@
         app:layout_constraintBottom_toTopOf="@id/layoutBottomTabs"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/layoutActiveCallBanner" />
 
     <!-- Solid Bottom Navigation Bar at the very bottom -->
     <LinearLayout

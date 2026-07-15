@@ -18,6 +18,10 @@ import androidx.fragment.app.Fragment;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 import androidx.viewpager2.widget.ViewPager2;
 
+import android.os.SystemClock;
+import android.widget.Chronometer;
+import android.view.View;
+
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_CODE_SET_DEFAULT_DIALER = 3005;
@@ -25,6 +29,10 @@ public class MainActivity extends AppCompatActivity {
     private ViewPager2 viewPager;
     private TextView tabKeypad, tabRecents, tabContacts, tabVoicemail;
     private AppDatabase database;
+
+    private View layoutActiveCallBanner;
+    private TextView tvActiveCallBannerName;
+    private Chronometer chronometerActiveCall;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,6 +74,10 @@ public class MainActivity extends AppCompatActivity {
         tabContacts = findViewById(R.id.tabContacts);
         tabVoicemail = findViewById(R.id.tabVoicemail);
 
+        layoutActiveCallBanner = findViewById(R.id.layoutActiveCallBanner);
+        tvActiveCallBannerName = findViewById(R.id.tvActiveCallBannerName);
+        chronometerActiveCall = findViewById(R.id.chronometerActiveCall);
+
         setupViewPager();
         setupBottomNavigation();
 
@@ -79,6 +91,18 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private final CallManager.CallStateListener mainCallListener = new CallManager.CallStateListener() {
+        @Override
+        public void onStateChanged(int state) {
+            updateActiveCallBanner();
+        }
+
+        @Override
+        public void onCallListChanged() {
+            updateActiveCallBanner();
+        }
+    };
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -86,6 +110,72 @@ public class MainActivity extends AppCompatActivity {
             checkDefaultDialer();
             checkOverlayPermission();
         }
+        CallManager.registerListener(mainCallListener);
+        updateActiveCallBanner();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        CallManager.unregisterListener(mainCallListener);
+    }
+
+    private void updateActiveCallBanner() {
+        runOnUiThread(() -> {
+            android.telecom.Call activeCall = CallManager.sCurrentCall;
+            if (activeCall != null && activeCall.getState() != android.telecom.Call.STATE_RINGING 
+                    && activeCall.getState() != android.telecom.Call.STATE_DISCONNECTED) {
+                
+                if (layoutActiveCallBanner != null) {
+                    layoutActiveCallBanner.setVisibility(View.VISIBLE);
+                    
+                    // Retrieve phone number and name
+                    String number = "Unknown";
+                    android.telecom.Call.Details details = activeCall.getDetails();
+                    if (details != null && details.getHandle() != null) {
+                        number = details.getHandle().getSchemeSpecificPart();
+                    }
+                    
+                    String display = number;
+                    ContactModel contact = ContactCache.getContactByNumber(number);
+                    if (contact != null && contact.getName() != null) {
+                        display = contact.getName();
+                    }
+                    final String finalDisplay = display;
+                    
+                    if (tvActiveCallBannerName != null) {
+                        tvActiveCallBannerName.setText("Active call: " + finalDisplay);
+                    }
+                    
+                    // Setup chronometer
+                    if (chronometerActiveCall != null) {
+                        long connectTime = details != null ? details.getConnectTimeMillis() : 0;
+                        if (connectTime > 0) {
+                            chronometerActiveCall.setBase(SystemClock.elapsedRealtime() - (System.currentTimeMillis() - connectTime));
+                        } else {
+                            chronometerActiveCall.setBase(SystemClock.elapsedRealtime());
+                        }
+                        chronometerActiveCall.start();
+                    }
+
+                    layoutActiveCallBanner.setOnClickListener(v -> {
+                        Utils.triggerHaptic(v);
+                        Intent intent = new Intent(MainActivity.this, OngoingCallActivity.class);
+                        intent.putExtra("EXTRA_NUMBER", details != null && details.getHandle() != null ? details.getHandle().getSchemeSpecificPart() : "");
+                        intent.putExtra("EXTRA_NAME", finalDisplay);
+                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
+                    });
+                }
+            } else {
+                if (layoutActiveCallBanner != null) {
+                    layoutActiveCallBanner.setVisibility(View.GONE);
+                }
+                if (chronometerActiveCall != null) {
+                    chronometerActiveCall.stop();
+                }
+            }
+        });
     }
 
     private void setupViewPager() {
