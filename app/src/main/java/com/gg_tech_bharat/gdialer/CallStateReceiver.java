@@ -23,6 +23,11 @@ public class CallStateReceiver extends BroadcastReceiver {
         Log.d(TAG, "Telephony State Changed: " + state);
 
         if (Objects.equals(TelephonyManager.EXTRA_STATE_OFFHOOK, state)) {
+            Log.d(TAG, "Offhook state detected");
+            if (InCallServiceImpl.sInstance == null) {
+                Log.w(TAG, "Skipping background service start on OFFHOOK to prevent Android 14+ ForegroundServiceStartNotAllowedException");
+                return;
+            }
             android.content.SharedPreferences prefs = context.getSharedPreferences("DialerPrefs", Context.MODE_PRIVATE);
             boolean autoRecord = prefs.getBoolean("auto_record_enabled", false);
             if (autoRecord) {
@@ -44,6 +49,11 @@ public class CallStateReceiver extends BroadcastReceiver {
                 }
             }
         } else if (Objects.equals(TelephonyManager.EXTRA_STATE_IDLE, state)) {
+            Log.d(TAG, "Idle state detected");
+            if (InCallServiceImpl.sInstance == null) {
+                Log.w(TAG, "Skipping background service stop on IDLE as InCallServiceImpl is not active");
+                return;
+            }
             Intent recordIntent = new Intent(context, RecordingService.class);
             recordIntent.setAction(RecordingService.ACTION_STOP_RECORDING);
             try {

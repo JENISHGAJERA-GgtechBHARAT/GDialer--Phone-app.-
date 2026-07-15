@@ -200,7 +200,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
             }
             
             overridePendingTransition(R.anim.premium_fade_in, R.anim.premium_fade_out);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             Log.e("OngoingCallActivity", "Error in onCreate", e);
             finish();
         }
@@ -230,7 +230,7 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
 
             overridePendingTransition(R.anim.premium_fade_in, R.anim.premium_fade_out);
             loadCallerDetails();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             Log.e("OngoingCallActivity", "Error in onNewIntent", e);
         }
     }
