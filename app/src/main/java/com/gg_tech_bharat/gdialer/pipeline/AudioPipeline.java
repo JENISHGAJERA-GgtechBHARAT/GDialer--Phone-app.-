@@ -255,7 +255,21 @@ public class AudioPipeline {
             // 3. Apply post-processing DSP filters
             applyDspFilters(floatOutput);
 
-            // 4. Convert floatPCM back to shortPCM & calculate output decibel level
+            // 4. Calculate energy and detect Voice Activity (VAD)
+            float outputSumSquareForVad = 0.0f;
+            for (int i = 0; i < SAMPLES_PER_FRAME; ++i) {
+                outputSumSquareForVad += floatOutput[i] * floatOutput[i];
+            }
+            detectVoiceAndEnvironment(inputSumSquare, outputSumSquareForVad);
+
+            // 5. Adaptive Noise Gate: If user is silent (no speech active), aggressively suppress/cancel all surrounding noise
+            if (isAiEnabled && !isVoiceActive) {
+                for (int i = 0; i < SAMPLES_PER_FRAME; ++i) {
+                    floatOutput[i] *= 0.005f; // Attenuate residual noise by 46dB (essentially complete silence)
+                }
+            }
+
+            // 6. Convert floatPCM back to shortPCM & calculate output decibel level
             float outputSumSquare = 0.0f;
             for (int i = 0; i < SAMPLES_PER_FRAME; ++i) {
                 float sample = floatOutput[i];
@@ -268,10 +282,7 @@ public class AudioPipeline {
             }
             outputLevelDb = calculateDb(outputSumSquare / SAMPLES_PER_FRAME);
 
-            // 5. Voice Activity & Environment Detection
-            detectVoiceAndEnvironment(inputSumSquare, outputSumSquare);
-
-            // 6. Notify active calling streams or recording services
+            // 7. Notify active calling streams or recording services
             if (frameListener != null) {
                 frameListener.onProcessedFrame(outputBuffer, inputLevelDb, outputLevelDb, isVoiceActive, detectedEnvironment);
             }
