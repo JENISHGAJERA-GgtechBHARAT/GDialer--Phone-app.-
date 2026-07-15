@@ -282,8 +282,11 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
         if (tvCallerName != null) tvCallerName.setText(callerName);
         updateCallerLocation();
         if (CallManager.sCurrentCall != null && CallManager.sCurrentCall.getState() == Call.STATE_ACTIVE) {
-            long connectTime = CallManager.sCurrentCall.getDetails().getConnectTimeMillis();
-            if (connectTime > 0) callStartTime = SystemClock.elapsedRealtime() - (System.currentTimeMillis() - connectTime);
+            Call.Details details = CallManager.sCurrentCall.getDetails();
+            if (details != null) {
+                long connectTime = details.getConnectTimeMillis();
+                if (connectTime > 0) callStartTime = SystemClock.elapsedRealtime() - (System.currentTimeMillis() - connectTime);
+            }
         }
     }
 
@@ -366,7 +369,8 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
         if (CallManager.sCurrentCall != null) {
             try {
                 int state = CallManager.sCurrentCall.getState();
-                int videoState = CallManager.sCurrentCall.getDetails().getVideoState();
+                Call.Details details = CallManager.sCurrentCall.getDetails();
+                int videoState = details != null ? details.getVideoState() : VideoProfile.STATE_AUDIO_ONLY;
                 boolean isVideo = (VideoProfile.isVideo(videoState) || mockVideoState) && state == Call.STATE_ACTIVE;
                 boolean isRealVideo = VideoProfile.isVideo(videoState) && CallManager.sCurrentCall.getVideoCall() != null;
 
@@ -729,7 +733,17 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
 
     private void toggleKeypad() {
         Utils.triggerHaptic(btnKeypadToggle); boolean visible = layoutInCallKeypad.getVisibility() == View.VISIBLE;
-        if (visible) { layoutInCallKeypad.setVisibility(View.GONE); if (controlGrid != null) controlGrid.setVisibility(View.VISIBLE); if (CallManager.sCurrentCall != null && !VideoProfile.isVideo(CallManager.sCurrentCall.getDetails().getVideoState())) if (layoutAvatarPulsing != null) layoutAvatarPulsing.setVisibility(View.VISIBLE); }
+        if (visible) {
+            layoutInCallKeypad.setVisibility(View.GONE);
+            if (controlGrid != null) controlGrid.setVisibility(View.VISIBLE);
+            if (CallManager.sCurrentCall != null) {
+                Call.Details details = CallManager.sCurrentCall.getDetails();
+                boolean isVideo = details != null && VideoProfile.isVideo(details.getVideoState());
+                if (!isVideo && layoutAvatarPulsing != null) {
+                    layoutAvatarPulsing.setVisibility(View.VISIBLE);
+                }
+            }
+        }
         else { layoutInCallKeypad.setVisibility(View.VISIBLE); if (controlGrid != null) controlGrid.setVisibility(View.GONE); if (layoutAvatarPulsing != null) layoutAvatarPulsing.setVisibility(View.GONE); }
     }
 
@@ -747,7 +761,8 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
         if (CallManager.sCurrentCall != null) {
             InCallService.VideoCall vc = CallManager.sCurrentCall.getVideoCall();
             if (vc != null) {
-                int curr = CallManager.sCurrentCall.getDetails().getVideoState();
+                Call.Details details = CallManager.sCurrentCall.getDetails();
+                int curr = details != null ? details.getVideoState() : VideoProfile.STATE_AUDIO_ONLY;
                 int next = VideoProfile.isVideo(curr) ? VideoProfile.STATE_AUDIO_ONLY : VideoProfile.STATE_BIDIRECTIONAL;
                 vc.sendSessionModifyRequest(new VideoProfile(next));
                 if (btnVideoCallInCall != null) {

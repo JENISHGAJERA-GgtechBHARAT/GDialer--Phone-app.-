@@ -711,6 +711,7 @@ public class IncomingCallActivity extends AppCompatActivity implements SensorEve
         } else {
             finish();
         }
+        overridePendingTransition(0, R.anim.premium_fade_out);
     }
 
     private void rejectCall() {
