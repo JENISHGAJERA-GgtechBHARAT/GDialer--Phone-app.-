@@ -83,7 +83,11 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     private long callStartTime = 0;
     private final Runnable statusPollingRunnable = new Runnable() {
         @Override public void run() {
-            updateCallStatusIndicators();
+            try {
+                updateCallStatusIndicators();
+            } catch (Throwable t) {
+                Log.e("OngoingCallActivity", "Error in statusPollingRunnable", t);
+            }
             if (CallManager.sCurrentCall != null) {
                 int state = CallManager.sCurrentCall.getState();
                 if (state == Call.STATE_DIALING || state == Call.STATE_CONNECTING || state == Call.STATE_ACTIVE) {
@@ -94,26 +98,35 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     };
     private final Runnable timerRunnable = new Runnable() {
         @Override public void run() {
-            updateTimerUI();
+            try {
+                updateTimerUI();
+            } catch (Throwable t) {
+                Log.e("OngoingCallActivity", "Error in timerRunnable", t);
+            }
             timerHandler.postDelayed(this, 1000);
         }
     };
 
     private final BroadcastReceiver disconnectReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
-            if ("com.gg_tech_bharat.gdialer.CALL_DISCONNECTED".equals(intent.getAction())) {
-                // Stop recording when call disconnected
-                try {
-                    Intent recordIntent = new Intent(context, RecordingService.class);
-                    recordIntent.setAction(RecordingService.ACTION_STOP_RECORDING);
-                    context.startService(recordIntent);
-                } catch (Exception ignored) {}
+            try {
+                if (intent == null) return;
+                if ("com.gg_tech_bharat.gdialer.CALL_DISCONNECTED".equals(intent.getAction())) {
+                    // Stop recording when call disconnected
+                    try {
+                        Intent recordIntent = new Intent(context, RecordingService.class);
+                        recordIntent.setAction(RecordingService.ACTION_STOP_RECORDING);
+                        context.startService(recordIntent);
+                    } catch (Exception ignored) {}
 
-                // Vibration handled by InCallServiceImpl to avoid duplicates
-                finishAndRemoveTask();
-                overridePendingTransition(0, R.anim.premium_fade_out);
-            } else if ("com.gg_tech_bharat.gdialer.VIDEO_STATE_CHANGED".equals(intent.getAction())) {
-                updateVideoUI();
+                    // Vibration handled by InCallServiceImpl to avoid duplicates
+                    finishAndRemoveTask();
+                    overridePendingTransition(0, R.anim.premium_fade_out);
+                } else if ("com.gg_tech_bharat.gdialer.VIDEO_STATE_CHANGED".equals(intent.getAction())) {
+                    updateVideoUI();
+                }
+            } catch (Throwable t) {
+                Log.e("OngoingCallActivity", "Error in disconnectReceiver", t);
             }
         }
     };
@@ -121,32 +134,48 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
     private final Call.Callback individualCallCallback = new Call.Callback() {
         @Override public void onStateChanged(Call call, int state) {
             super.onStateChanged(call, state);
-            updateMultiCallUI();
+            try {
+                updateMultiCallUI();
+            } catch (Throwable t) { Log.e("OngoingCallActivity", "Callback error", t); }
         }
         @Override public void onDetailsChanged(Call call, Call.Details details) {
             super.onDetailsChanged(call, details);
-            updateVideoUI();
-            updateCallStatusIndicators();
+            try {
+                updateVideoUI();
+                updateCallStatusIndicators();
+            } catch (Throwable t) { Log.e("OngoingCallActivity", "Callback error", t); }
         }
     };
 
     private final CallManager.CallStateListener callListListener = new CallManager.CallStateListener() {
         @Override public void onStateChanged(int state) {
-            if (state == Call.STATE_ACTIVE && callStartTime == 0) callStartTime = SystemClock.elapsedRealtime();
-            updateTimerUI();
-            updateVideoUI();
-            updateCallStatusIndicators();
+            try {
+                if (state == Call.STATE_ACTIVE && callStartTime == 0) callStartTime = SystemClock.elapsedRealtime();
+                updateTimerUI();
+                updateVideoUI();
+                updateCallStatusIndicators();
+            } catch (Throwable t) { Log.e("OngoingCallActivity", "Listener error", t); }
         }
         @Override public void onCallListChanged() { 
-            updateMultiCallUI(); 
-            for (Call call : CallManager.getCalls()) {
-                call.unregisterCallback(individualCallCallback);
-                call.registerCallback(individualCallCallback);
-            }
-            updateCallStatusIndicators();
+            try {
+                updateMultiCallUI(); 
+                for (Call call : CallManager.getCalls()) {
+                    if (call != null) {
+                        call.unregisterCallback(individualCallCallback);
+                        call.registerCallback(individualCallCallback);
+                    }
+                }
+                updateCallStatusIndicators();
+            } catch (Throwable t) { Log.e("OngoingCallActivity", "Listener error", t); }
         }
         @Override public void onAudioStateChanged(CallAudioState audioState) {
-            runOnUiThread(() -> updateSpeakerUI(audioState));
+            try {
+                runOnUiThread(() -> {
+                    try {
+                        updateSpeakerUI(audioState);
+                    } catch (Throwable t) {}
+                });
+            } catch (Throwable t) {}
         }
     };
 
@@ -553,31 +582,43 @@ public class OngoingCallActivity extends AppCompatActivity implements SensorEven
 
     private void loadCallerDetails() {
         AppDatabase.databaseWriteExecutor.execute(() -> {
-            ContactDao dao = AppDatabase.getDatabase(this).contactDao();
-            String normalized = Utils.normalizePhoneNumber(phoneNumber);
-            ContactModel contact = dao.getContactByNormalizedNumber(normalized);
-            if (contact == null && normalized.length() >= 10) contact = dao.getContactByLastDigits(normalized.substring(normalized.length() - 10));
-            if (contact != null) {
-                callerName = contact.getName();
-                final String uri = contact.getPhotoUri();
-                runOnUiThread(() -> {
-                    if (tvCallerName != null) tvCallerName.setText(callerName);
-                    Utils.loadContactPhoto(this, uri, ivCallerPhoto);
-                });
-            } else {
-                String name = Utils.queryContactName(this, phoneNumber);
-                String systemPhoto = Utils.queryContactPhotoUri(this, phoneNumber);
-                if (name != null) {
-                    callerName = name;
+            try {
+                ContactDao dao = AppDatabase.getDatabase(this).contactDao();
+                String normalized = Utils.normalizePhoneNumber(phoneNumber);
+                ContactModel contact = dao.getContactByNormalizedNumber(normalized);
+                if (contact == null && normalized.length() >= 10) contact = dao.getContactByLastDigits(normalized.substring(normalized.length() - 10));
+                if (contact != null) {
+                    callerName = contact.getName();
+                    final String uri = contact.getPhotoUri();
                     runOnUiThread(() -> {
-                        if (tvCallerName != null) tvCallerName.setText(callerName);
+                        try {
+                            if (tvCallerName != null) tvCallerName.setText(callerName);
+                            Utils.loadContactPhoto(this, uri, ivCallerPhoto);
+                        } catch (Throwable t) {
+                            Log.e("OngoingCallActivity", "Error loading photo in UI thread", t);
+                        }
                     });
+                } else {
+                    String name = Utils.queryContactName(this, phoneNumber);
+                    String systemPhoto = Utils.queryContactPhotoUri(this, phoneNumber);
+                    if (name != null) {
+                        callerName = name;
+                        runOnUiThread(() -> {
+                            try {
+                                if (tvCallerName != null) tvCallerName.setText(callerName);
+                            } catch (Throwable t) {}
+                        });
+                    }
+                    if (systemPhoto != null) {
+                        runOnUiThread(() -> {
+                            try {
+                                Utils.loadContactPhoto(this, systemPhoto, ivCallerPhoto);
+                            } catch (Throwable t) {}
+                        });
+                    }
                 }
-                if (systemPhoto != null) {
-                    runOnUiThread(() -> {
-                        Utils.loadContactPhoto(this, systemPhoto, ivCallerPhoto);
-                    });
-                }
+            } catch (Throwable t) {
+                Log.e("OngoingCallActivity", "Error loading caller details in background thread", t);
             }
         });
     }
